@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => MediaViewModel()),
+        ChangeNotifierProvider(create: (_) => MediaProvider()),
       ],
       child: MaterialApp(
         title: 'Media Handler',
@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
               );
             }
 
-            return authProvider.isAuthenticated ? MainScreen() : LoginPage();
+            return authProvider.isAuthenticated ? MainScreen() : MainScreen();
           },
         ),
       ),
