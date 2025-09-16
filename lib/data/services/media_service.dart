@@ -2,10 +2,20 @@ import 'package:dio/dio.dart';
 import '../models/media_model.dart';
 import '../models/collection_model.dart';
 import '../models/pagination_model.dart';
+import '../../core/constants/api_constants.dart';
 
+/// MediaService handles all media-related API calls.
+///
+/// Features:
+/// - Media CRUD operations (Create, Read, Update, Delete)
+/// - Collection management
+/// - File upload functionality
+/// - Pagination support
+/// - Search and filtering
+///
+/// All requests automatically include authentication tokens via Dio interceptors.
 class MediaService {
-  static const String baseUrl =
-      'YOUR_DJANGO_API_BASE_URL'; // Replace with your actual API URL
+  /// Dio HTTP client for making API requests
   final Dio _dio;
 
   MediaService(this._dio);
@@ -27,7 +37,7 @@ class MediaService {
       }
 
       final response = await _dio.get(
-        '$baseUrl/api/media/',
+        ApiConstants.mediaUrl,
         queryParameters: queryParams,
       );
 
@@ -42,7 +52,7 @@ class MediaService {
 
   Future<Media> getMediaById(String id) async {
     try {
-      final response = await _dio.get('$baseUrl/api/media/$id/');
+      final response = await _dio.get(ApiConstants.mediaByIdUrl(id));
       return Media.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioException(e);
@@ -65,7 +75,7 @@ class MediaService {
         'file': await MultipartFile.fromFile(filePath),
       });
 
-      final response = await _dio.post('$baseUrl/api/media/', data: formData);
+      final response = await _dio.post(ApiConstants.mediaUrl, data: formData);
 
       return Media.fromJson(response.data);
     } on DioException catch (e) {
@@ -75,7 +85,10 @@ class MediaService {
 
   Future<Media> updateMedia(String id, Map<String, dynamic> data) async {
     try {
-      final response = await _dio.put('$baseUrl/api/media/$id/', data: data);
+      final response = await _dio.put(
+        ApiConstants.mediaByIdUrl(id),
+        data: data,
+      );
       return Media.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioException(e);
@@ -84,7 +97,10 @@ class MediaService {
 
   Future<Media> patchMedia(String id, Map<String, dynamic> data) async {
     try {
-      final response = await _dio.patch('$baseUrl/api/media/$id/', data: data);
+      final response = await _dio.patch(
+        ApiConstants.mediaByIdUrl(id),
+        data: data,
+      );
       return Media.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioException(e);
@@ -93,7 +109,7 @@ class MediaService {
 
   Future<void> deleteMedia(String id) async {
     try {
-      await _dio.delete('$baseUrl/api/media/$id/');
+      await _dio.delete(ApiConstants.mediaByIdUrl(id));
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -102,7 +118,7 @@ class MediaService {
   Future<void> addToCollection(String mediaId, String collectionId) async {
     try {
       await _dio.post(
-        '$baseUrl/api/media/$mediaId/add-to-collection/',
+        ApiConstants.addToCollectionUrl(mediaId),
         data: {'collection_id': collectionId},
       );
     } on DioException catch (e) {
@@ -112,7 +128,7 @@ class MediaService {
 
   Future<void> removeFromCollection(String mediaId) async {
     try {
-      await _dio.post('$baseUrl/api/media/$mediaId/remove-from-collection/');
+      await _dio.post(ApiConstants.removeFromCollectionUrl(mediaId));
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -135,7 +151,7 @@ class MediaService {
       }
 
       final response = await _dio.get(
-        '$baseUrl/api/media/collection/',
+        ApiConstants.collectionsUrl,
         queryParameters: queryParams,
       );
 
@@ -150,7 +166,7 @@ class MediaService {
 
   Future<Collection> getCollectionById(String id) async {
     try {
-      final response = await _dio.get('$baseUrl/api/media/collection/$id/');
+      final response = await _dio.get(ApiConstants.collectionByIdUrl(id));
       return Collection.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioException(e);
@@ -163,7 +179,7 @@ class MediaService {
   }) async {
     try {
       final response = await _dio.post(
-        '$baseUrl/api/media/collection/',
+        ApiConstants.collectionsUrl,
         data: {'name': name, 'description': description},
       );
       return Collection.fromJson(response.data);
@@ -178,7 +194,7 @@ class MediaService {
   ) async {
     try {
       final response = await _dio.put(
-        '$baseUrl/api/media/collection/$id/',
+        ApiConstants.collectionByIdUrl(id),
         data: data,
       );
       return Collection.fromJson(response.data);
@@ -193,7 +209,7 @@ class MediaService {
   ) async {
     try {
       final response = await _dio.patch(
-        '$baseUrl/api/media/collection/$id/',
+        ApiConstants.collectionByIdUrl(id),
         data: data,
       );
       return Collection.fromJson(response.data);
@@ -204,7 +220,7 @@ class MediaService {
 
   Future<void> deleteCollection(String id) async {
     try {
-      await _dio.delete('$baseUrl/api/media/collection/$id/');
+      await _dio.delete(ApiConstants.collectionByIdUrl(id));
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

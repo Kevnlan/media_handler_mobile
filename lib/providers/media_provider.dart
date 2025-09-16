@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import '../data/models/media_model.dart';
 import '../data/models/collection_model.dart';
 import '../data/models/pagination_model.dart';
 import '../data/services/media_service.dart';
+import '../core/network/dio_factory.dart';
 
 class MediaProvider extends ChangeNotifier {
   late final MediaService _mediaService;
@@ -38,7 +38,7 @@ class MediaProvider extends ChangeNotifier {
   }
 
   Future<void> _initializeMediaService() async {
-    final dio = Dio();
+    final dio = await DioFactory.createAuthenticatedDio();
     _mediaService = MediaService(dio);
 
     // Initialize loading states

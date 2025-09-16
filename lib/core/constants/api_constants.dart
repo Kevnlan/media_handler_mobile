@@ -18,7 +18,12 @@ class ApiConstants {
   static const String tokenRefreshEndpoint = '/api/auth/token/refresh/';
   static const String profileEndpoint = '/api/auth/profile/';
 
+  // Media endpoint paths
+  static const String mediaEndpoint = '/api/media/';
+  static const String collectionsEndpoint = '/api/media/collection/';
+
   // Complete URL getters - combine base URL with endpoint paths
+  // Authentication URLs
   /// Complete URL for user login API
   static String get loginUrl => '$baseUrl$loginEndpoint';
 
@@ -36,4 +41,26 @@ class ApiConstants {
 
   /// Complete URL for user profile API
   static String get profileUrl => '$baseUrl$profileEndpoint';
+
+  // Media URLs
+  /// Complete URL for media API
+  static String get mediaUrl => '$baseUrl$mediaEndpoint';
+
+  /// Complete URL for collections API
+  static String get collectionsUrl => '$baseUrl$collectionsEndpoint';
+
+  /// Get URL for specific media item
+  static String mediaByIdUrl(String id) => '$baseUrl$mediaEndpoint$id/';
+
+  /// Get URL for specific collection
+  static String collectionByIdUrl(String id) =>
+      '$baseUrl$collectionsEndpoint$id/';
+
+  /// Get URL for adding media to collection
+  static String addToCollectionUrl(String mediaId) =>
+      '$baseUrl$mediaEndpoint$mediaId/add-to-collection/';
+
+  /// Get URL for removing media from collection
+  static String removeFromCollectionUrl(String mediaId) =>
+      '$baseUrl$mediaEndpoint$mediaId/remove-from-collection/';
 }
