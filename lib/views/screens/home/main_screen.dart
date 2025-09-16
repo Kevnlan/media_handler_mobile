@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:media_handler/views/screens/home/home_page.dart';
 import 'package:media_handler/views/screens/home/profile_page.dart';
+import 'package:media_handler/views/screens/home/file_picker_page.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -12,10 +12,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
 
-  final List<Widget> _screens = [
-    HomeScreen(),
-    ProfileScreen(),
-  ];
+  final List<Widget> _screens = [HomeScreen(), ProfileScreen()];
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +26,18 @@ class _MainScreenState extends State<MainScreen> {
         },
         children: _screens,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => FilePickerPage()),
+          );
+        },
+        backgroundColor: Colors.blue,
+        child: Icon(Icons.add, color: Colors.white),
+        tooltip: 'Select Files',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -42,14 +51,8 @@ class _MainScreenState extends State<MainScreen> {
           );
         },
         items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
