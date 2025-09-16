@@ -5,18 +5,42 @@ import '../models/auth_models.dart';
 import '../models/user_model.dart';
 import '../../core/constants/api_constants.dart';
 
+/// AuthService handles all authentication-related API calls and token management.
+///
+/// Features:
+/// - JWT token storage and management
+/// - Automatic token refresh on 401 errors
+/// - User profile fetching
+/// - Login/logout/register API calls
+/// - Token validation and expiry checking
+///
+/// Uses Dio for HTTP requests with automatic Bearer token injection.
 class AuthService {
+  /// SharedPreferences key for storing access token
   static const String _accessTokenKey = 'access_token';
+
+  /// SharedPreferences key for storing refresh token
   static const String _refreshTokenKey = 'refresh_token';
+
+  /// SharedPreferences key for storing user data
   static const String _userKey = 'user_data';
 
+  /// Dio HTTP client for making API requests
   final Dio _dio;
+
+  /// SharedPreferences instance for local storage
   final SharedPreferences _prefs;
 
+  /// Constructor initializes the service with dependencies and sets up interceptors
   AuthService(this._dio, this._prefs) {
     _setupInterceptors();
   }
 
+  /// Sets up Dio interceptors for automatic token management
+  ///
+  /// - Automatically adds Bearer token to all requests
+  /// - Handles 401 errors by attempting token refresh
+  /// - Retries original request with new token if refresh succeeds
   void _setupInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(

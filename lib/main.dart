@@ -6,19 +6,30 @@ import 'package:media_handler/views/screens/auth/login.dart';
 import 'package:media_handler/views/screens/home/main_screen.dart';
 import 'package:provider/provider.dart';
 
+/// Entry point of the Media Handler application.
+///
+/// Initializes the app with all necessary providers for state management.
 void main() {
   runApp(const MyApp());
 }
 
+/// Root widget of the Media Handler application.
+///
+/// Sets up the Provider pattern for state management and handles
+/// authentication flow by showing appropriate screens based on auth state.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
+      // Initialize all providers for state management
       providers: [
+        // Authentication state and JWT token management
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        // User profile data and notifications
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        // Media file management and uploads
         ChangeNotifierProvider(create: (_) => MediaProvider()),
       ],
       child: MaterialApp(
@@ -29,7 +40,7 @@ class MyApp extends StatelessWidget {
         ),
         home: Consumer<AuthProvider>(
           builder: (context, authProvider, child) {
-            // Show splash screen while initializing
+            // Show splash screen while checking authentication state
             if (authProvider.isInitializing) {
               return Scaffold(
                 body: Center(
@@ -54,6 +65,7 @@ class MyApp extends StatelessWidget {
               );
             }
 
+            // Navigate to main screen if authenticated, login screen otherwise
             return authProvider.isAuthenticated ? MainScreen() : LoginPage();
           },
         ),
