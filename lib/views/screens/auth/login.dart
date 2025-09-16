@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:media_handler/data/models/user_model.dart';
 import 'package:media_handler/providers/auth_provider.dart';
 import 'package:media_handler/providers/user_provider.dart';
 import 'package:provider/provider.dart';
@@ -97,7 +96,9 @@ class _LoginPageState extends State<LoginPage> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
                         }
-                        if (!value.contains('@')) {
+                        if (!RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        ).hasMatch(value)) {
                           return 'Please enter a valid email';
                         }
                         return null;
@@ -137,8 +138,8 @@ class _LoginPageState extends State<LoginPage> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your password';
                         }
-                        if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
+                        if (value.length < 8) {
+                          return 'Password must be at least 8 characters';
                         }
                         return null;
                       },
@@ -157,17 +158,12 @@ class _LoginPageState extends State<LoginPage> {
                                 );
 
                                 // Set user data if login successful
-                                if (authProvider.isAuthenticated) {
+                                if (authProvider.isAuthenticated &&
+                                    authProvider.currentUser != null) {
                                   Provider.of<UserProvider>(
                                     context,
                                     listen: false,
-                                  ).setUser(
-                                    User(
-                                      id: '1',
-                                      name: 'John Doe',
-                                      email: _emailController.text.trim(),
-                                    ),
-                                  );
+                                  ).setUser(authProvider.currentUser!);
                                 }
                               }
                             },

@@ -18,12 +18,20 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateProfile(String name, String email) {
+  void updateProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? username,
+    String? phoneNumber,
+  }) {
     if (_currentUser != null) {
-      _currentUser = User(
-        id: _currentUser!.id,
-        name: name,
-        email: email,
+      _currentUser = _currentUser!.copyWith(
+        firstName: firstName ?? _currentUser!.firstName,
+        lastName: lastName ?? _currentUser!.lastName,
+        email: email ?? _currentUser!.email,
+        username: username,
+        phoneNumber: phoneNumber,
       );
       notifyListeners();
     }
@@ -32,6 +40,13 @@ class UserProvider extends ChangeNotifier {
   void addNotification(String notification) {
     _notifications.insert(0, notification);
     notifyListeners();
+  }
+
+  void removeNotification(int index) {
+    if (index >= 0 && index < _notifications.length) {
+      _notifications.removeAt(index);
+      notifyListeners();
+    }
   }
 
   void clearNotifications() {

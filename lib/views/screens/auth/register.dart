@@ -1,6 +1,4 @@
-
 import 'package:flutter/material.dart';
-import 'package:media_handler/data/models/user_model.dart';
 import 'package:media_handler/providers/auth_provider.dart';
 import 'package:media_handler/providers/user_provider.dart';
 import 'package:provider/provider.dart';
@@ -12,8 +10,11 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isPasswordVisible = false;
@@ -49,11 +50,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Logo or App Title
-                      Icon(
-                        Icons.person_add,
-                        size: 80,
-                        color: Colors.blue,
-                      ),
+                      Icon(Icons.person_add, size: 80, color: Colors.blue),
                       SizedBox(height: 24),
                       Text(
                         'Create Account',
@@ -67,10 +64,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       SizedBox(height: 8),
                       Text(
                         'Sign up to get started',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 32),
@@ -91,31 +85,67 @@ class _RegisterPageState extends State<RegisterPage> {
                             textAlign: TextAlign.center,
                           ),
                         ),
-                      
-                      // Name Field
-                      TextFormField(
-                        controller: _nameController,
-                        enabled: !authProvider.isLoading,
-                        decoration: InputDecoration(
-                          labelText: 'Full Name',
-                          prefixIcon: Icon(Icons.person),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+
+                      // First Name and Last Name Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _firstNameController,
+                              enabled: !authProvider.isLoading,
+                              decoration: InputDecoration(
+                                labelText: 'First Name*',
+                                prefixIcon: Icon(Icons.person_outline),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                            ),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.blue, width: 2),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _lastNameController,
+                              enabled: !authProvider.isLoading,
+                              decoration: InputDecoration(
+                                labelText: 'Last Name*',
+                                prefixIcon: Icon(Icons.person_outline),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.blue,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                            ),
                           ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your name';
-                          }
-                          return null;
-                        },
+                        ],
                       ),
                       SizedBox(height: 16),
-                      
+
                       // Email Field
                       TextFormField(
                         controller: _emailController,
@@ -129,21 +159,69 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.blue, width: 2),
+                            borderSide: BorderSide(
+                              color: Colors.blue,
+                              width: 2,
+                            ),
                           ),
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your email';
                           }
-                          if (!value.contains('@')) {
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                          ).hasMatch(value)) {
                             return 'Please enter a valid email';
                           }
                           return null;
                         },
                       ),
                       SizedBox(height: 16),
-                      
+
+                      // Username Field (Optional)
+                      TextFormField(
+                        controller: _usernameController,
+                        enabled: !authProvider.isLoading,
+                        decoration: InputDecoration(
+                          labelText: 'Username (Optional)',
+                          prefixIcon: Icon(Icons.alternate_email),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.blue,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
+                      // Phone Number Field (Optional)
+                      TextFormField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        enabled: !authProvider.isLoading,
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number (Optional)',
+                          prefixIcon: Icon(Icons.phone),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.blue,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+
                       // Password Field
                       TextFormField(
                         controller: _passwordController,
@@ -154,7 +232,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           prefixIcon: Icon(Icons.lock),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                              _isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                             ),
                             onPressed: () {
                               setState(() {
@@ -167,21 +247,24 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.blue, width: 2),
+                            borderSide: BorderSide(
+                              color: Colors.blue,
+                              width: 2,
+                            ),
                           ),
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter a password';
                           }
-                          if (value.length < 6) {
-                            return 'Password must be at least 6 characters';
+                          if (value.length < 8) {
+                            return 'Password must be at least 8 characters';
                           }
                           return null;
                         },
                       ),
                       SizedBox(height: 16),
-                      
+
                       // Confirm Password Field
                       TextFormField(
                         controller: _confirmPasswordController,
@@ -192,11 +275,14 @@ class _RegisterPageState extends State<RegisterPage> {
                           prefixIcon: Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                              _isConfirmPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                             ),
                             onPressed: () {
                               setState(() {
-                                _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+                                _isConfirmPasswordVisible =
+                                    !_isConfirmPasswordVisible;
                               });
                             },
                           ),
@@ -205,7 +291,10 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Colors.blue, width: 2),
+                            borderSide: BorderSide(
+                              color: Colors.blue,
+                              width: 2,
+                            ),
                           ),
                         ),
                         validator: (value) {
@@ -219,7 +308,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         },
                       ),
                       SizedBox(height: 24),
-                      
+
                       // Register Button
                       ElevatedButton(
                         onPressed: authProvider.isLoading
@@ -227,19 +316,25 @@ class _RegisterPageState extends State<RegisterPage> {
                             : () async {
                                 if (_formKey.currentState!.validate()) {
                                   await authProvider.register(
-                                    _nameController.text.trim(),
-                                    _emailController.text.trim(),
-                                    _passwordController.text,
+                                    firstName: _firstNameController.text.trim(),
+                                    lastName: _lastNameController.text.trim(),
+                                    email: _emailController.text.trim(),
+                                    password: _passwordController.text,
+                                    username: _usernameController.text.isEmpty
+                                        ? null
+                                        : _usernameController.text.trim(),
+                                    phoneNumber: _phoneController.text.isEmpty
+                                        ? null
+                                        : _phoneController.text.trim(),
                                   );
-                                  
-                                  // Set user data if registration successful
-                                  if (authProvider.isAuthenticated) {
-                                    Provider.of<UserProvider>(context, listen: false)
-                                        .setUser(User(
-                                      id: '1',
-                                      name: _nameController.text.trim(),
-                                      email: _emailController.text.trim(),
-                                    ));
+
+                                  // Registration automatically logs in, so set user data
+                                  if (authProvider.isAuthenticated &&
+                                      authProvider.currentUser != null) {
+                                    Provider.of<UserProvider>(
+                                      context,
+                                      listen: false,
+                                    ).setUser(authProvider.currentUser!);
                                   }
                                 }
                               },
@@ -260,7 +355,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
                                   ),
                                   SizedBox(width: 12),
@@ -269,11 +366,14 @@ class _RegisterPageState extends State<RegisterPage> {
                               )
                             : Text(
                                 'Create Account',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                       ),
                       SizedBox(height: 16),
-                      
+
                       // Login Link
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -291,7 +391,9 @@ class _RegisterPageState extends State<RegisterPage> {
                             child: Text(
                               'Sign In',
                               style: TextStyle(
-                                color: authProvider.isLoading ? Colors.grey : Colors.blue,
+                                color: authProvider.isLoading
+                                    ? Colors.grey
+                                    : Colors.blue,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -311,8 +413,11 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
+    _usernameController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();

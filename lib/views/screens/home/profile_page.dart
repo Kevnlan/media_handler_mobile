@@ -3,7 +3,6 @@ import 'package:media_handler/providers/auth_provider.dart';
 import 'package:media_handler/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 
-
 // Profile Screen
 class ProfileScreen extends StatelessWidget {
   @override
@@ -32,7 +31,7 @@ class ProfileScreen extends StatelessWidget {
         child: Consumer2<UserProvider, AuthProvider>(
           builder: (context, userProvider, authProvider, child) {
             final user = userProvider.currentUser;
-            
+
             return Column(
               children: [
                 // Profile Header
@@ -57,8 +56,8 @@ class ProfileScreen extends StatelessWidget {
                         radius: 50,
                         backgroundColor: Colors.blue.shade100,
                         child: Text(
-                          user?.name.isNotEmpty == true 
-                              ? user!.name[0].toUpperCase()
+                          user?.firstName.isNotEmpty == true
+                              ? user!.firstName[0].toUpperCase()
                               : 'U',
                           style: TextStyle(
                             fontSize: 36,
@@ -69,7 +68,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       SizedBox(height: 16),
                       Text(
-                        user?.name ?? 'User Name',
+                        user?.fullName ?? 'User Name',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -79,23 +78,54 @@ class ProfileScreen extends StatelessWidget {
                       SizedBox(height: 4),
                       Text(
                         user?.email ?? 'user@example.com',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                       ),
+                      if (user?.username != null) ...[
+                        SizedBox(height: 4),
+                        Text(
+                          '@${user!.username}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.blue[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                      if (user?.phoneNumber != null) ...[
+                        SizedBox(height: 4),
+                        Text(
+                          user!.phoneNumber!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                       SizedBox(height: 12),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.green.shade50,
+                          color: (user?.isActive ?? false)
+                              ? Colors.green.shade50
+                              : Colors.red.shade50,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.green.shade200),
+                          border: Border.all(
+                            color: (user?.isActive ?? false)
+                                ? Colors.green.shade200
+                                : Colors.red.shade200,
+                          ),
                         ),
                         child: Text(
-                          'Active User',
+                          (user?.isActive ?? false)
+                              ? 'Active User'
+                              : 'Inactive User',
                           style: TextStyle(
-                            color: Colors.green.shade700,
+                            color: (user?.isActive ?? false)
+                                ? Colors.green.shade700
+                                : Colors.red.shade700,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -104,7 +134,75 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 24),
-                
+
+                // Additional User Info
+                if (user != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Account Information',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        _buildInfoRow(
+                          icon: Icons.person,
+                          label: 'Full Name',
+                          value: user.fullName,
+                        ),
+                        _buildInfoRow(
+                          icon: Icons.email,
+                          label: 'Email',
+                          value: user.email,
+                        ),
+                        if (user.username != null)
+                          _buildInfoRow(
+                            icon: Icons.alternate_email,
+                            label: 'Username',
+                            value: user.username!,
+                          ),
+                        if (user.phoneNumber != null)
+                          _buildInfoRow(
+                            icon: Icons.phone,
+                            label: 'Phone',
+                            value: user.phoneNumber!,
+                          ),
+                        if (user.dateJoined != null)
+                          _buildInfoRow(
+                            icon: Icons.calendar_today,
+                            label: 'Member Since',
+                            value: _formatDate(user.dateJoined!),
+                          ),
+                        _buildInfoRow(
+                          icon: Icons.admin_panel_settings,
+                          label: 'Account Type',
+                          value: user.isStaff ? 'Staff' : 'Regular User',
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                ],
+
                 // Profile Stats
                 Row(
                   children: [
@@ -120,15 +218,19 @@ class ProfileScreen extends StatelessWidget {
                     Expanded(
                       child: _buildProfileStat(
                         title: 'Login Status',
-                        value: authProvider.isAuthenticated ? 'Online' : 'Offline',
+                        value: authProvider.isAuthenticated
+                            ? 'Online'
+                            : 'Offline',
                         icon: Icons.circle,
-                        color: authProvider.isAuthenticated ? Colors.green : Colors.red,
+                        color: authProvider.isAuthenticated
+                            ? Colors.green
+                            : Colors.red,
                       ),
                     ),
                   ],
                 ),
                 SizedBox(height: 24),
-                
+
                 // Profile Options
                 _buildProfileOption(
                   icon: Icons.person_outline,
@@ -139,7 +241,8 @@ class ProfileScreen extends StatelessWidget {
                 _buildProfileOption(
                   icon: Icons.notifications_outlined,
                   title: 'Notifications',
-                  subtitle: '${userProvider.notifications.length} unread messages',
+                  subtitle:
+                      '${userProvider.notifications.length} unread messages',
                   onTap: () => _showNotificationsPage(context, userProvider),
                 ),
                 _buildProfileOption(
@@ -167,13 +270,14 @@ class ProfileScreen extends StatelessWidget {
                   onTap: () => _showAboutDialog(context),
                 ),
                 SizedBox(height: 24),
-                
+
                 // Account Actions
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _showEditProfileDialog(context, userProvider),
+                        onPressed: () =>
+                            _showEditProfileDialog(context, userProvider),
                         icon: Icon(Icons.edit),
                         label: Text('Edit Profile'),
                         style: ElevatedButton.styleFrom(
@@ -189,7 +293,8 @@ class ProfileScreen extends StatelessWidget {
                     SizedBox(width: 16),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _showLogoutConfirmation(context, authProvider),
+                        onPressed: () =>
+                            _showLogoutConfirmation(context, authProvider),
                         icon: Icon(Icons.logout),
                         label: Text('Logout'),
                         style: ElevatedButton.styleFrom(
@@ -244,13 +349,7 @@ class ProfileScreen extends StatelessWidget {
               color: Colors.grey[800],
             ),
           ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );
@@ -283,49 +382,96 @@ class ProfileScreen extends StatelessWidget {
         ),
         subtitle: Text(
           subtitle,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
-        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Colors.grey[400],
+        ),
         onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         tileColor: Colors.white,
       ),
     );
   }
 
   void _showEditProfileDialog(BuildContext context, UserProvider userProvider) {
-    final nameController = TextEditingController(text: userProvider.currentUser?.name ?? '');
-    final emailController = TextEditingController(text: userProvider.currentUser?.email ?? '');
+    final firstNameController = TextEditingController(
+      text: userProvider.currentUser?.firstName ?? '',
+    );
+    final lastNameController = TextEditingController(
+      text: userProvider.currentUser?.lastName ?? '',
+    );
+    final emailController = TextEditingController(
+      text: userProvider.currentUser?.email ?? '',
+    );
+    final usernameController = TextEditingController(
+      text: userProvider.currentUser?.username ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: userProvider.currentUser?.phoneNumber ?? '',
+    );
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text('Edit Profile'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: firstNameController,
+                  decoration: InputDecoration(
+                    labelText: 'First Name',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
                 ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
+                SizedBox(height: 16),
+                TextField(
+                  controller: lastNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Last Name',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
                 ),
-              ),
-            ],
+                SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                  readOnly: true, // Email shouldn't be editable in profile
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: usernameController,
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.alternate_email),
+                    hintText: 'Optional',
+                  ),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  decoration: InputDecoration(
+                    labelText: 'Phone Number',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone),
+                    hintText: 'Optional',
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -334,10 +480,22 @@ class ProfileScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                userProvider.updateProfile(
-                  nameController.text,
-                  emailController.text,
+                // Update the user with new information
+                final updatedUser = userProvider.currentUser?.copyWith(
+                  firstName: firstNameController.text.trim(),
+                  lastName: lastNameController.text.trim(),
+                  username: usernameController.text.trim().isEmpty
+                      ? null
+                      : usernameController.text.trim(),
+                  phoneNumber: phoneController.text.trim().isEmpty
+                      ? null
+                      : phoneController.text.trim(),
                 );
+
+                if (updatedUser != null) {
+                  userProvider.setUser(updatedUser);
+                }
+
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Profile updated successfully!')),
@@ -373,7 +531,9 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       TextButton(
                         onPressed: () {
-                          userProvider.addNotification('Test notification added');
+                          userProvider.addNotification(
+                            'Test notification added',
+                          );
                         },
                         child: Text('Add Test'),
                       ),
@@ -414,15 +574,16 @@ class ProfileScreen extends StatelessWidget {
                         itemCount: userProvider.notifications.length,
                         itemBuilder: (context, index) {
                           return ListTile(
-                            leading: Icon(Icons.notifications, color: Colors.blue),
+                            leading: Icon(
+                              Icons.notifications,
+                              color: Colors.blue,
+                            ),
                             title: Text(userProvider.notifications[index]),
                             subtitle: Text('Just now'),
                             trailing: IconButton(
                               icon: Icon(Icons.close, size: 16),
                               onPressed: () {
-                                // Remove specific notification
-                                userProvider.notifications.removeAt(index);
-                                userProvider.notifyListeners();
+                                userProvider.removeNotification(index);
                               },
                             ),
                           );
@@ -452,7 +613,9 @@ class ProfileScreen extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Change password feature coming soon!')),
+                    SnackBar(
+                      content: Text('Change password feature coming soon!'),
+                    ),
                   );
                 },
               ),
@@ -462,7 +625,9 @@ class ProfileScreen extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Biometric login feature coming soon!')),
+                    SnackBar(
+                      content: Text('Biometric login feature coming soon!'),
+                    ),
                   );
                 },
               ),
@@ -472,7 +637,9 @@ class ProfileScreen extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Privacy settings feature coming soon!')),
+                    SnackBar(
+                      content: Text('Privacy settings feature coming soon!'),
+                    ),
                   );
                 },
               ),
@@ -504,41 +671,129 @@ class ProfileScreen extends StatelessWidget {
   void _showAboutDialog(BuildContext context) {
     showAboutDialog(
       context: context,
-      applicationName: 'Flutter Auth App',
+      applicationName: 'Media Handler',
       applicationVersion: '1.0.0',
-      applicationIcon: Icon(Icons.flutter_dash),
+      applicationIcon: Icon(Icons.account_circle, size: 48, color: Colors.blue),
       children: [
-        Text('A Flutter app with Provider state management for authentication and user data.'),
+        Text(
+          'A comprehensive Flutter application for handling media files and user authentication with JWT token management and Django backend integration.',
+        ),
       ],
     );
   }
 
-  void _showLogoutConfirmation(BuildContext context, AuthProvider authProvider) {
+  void _showLogoutConfirmation(
+    BuildContext context,
+    AuthProvider authProvider,
+  ) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text('Logout'),
-          content: Text('Are you sure you want to logout? You will need to sign in again.'),
+          content: Text(
+            'Are you sure you want to logout? You will need to sign in again.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text('Cancel'),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                authProvider.logout();
+            Consumer<AuthProvider>(
+              builder: (context, authProvider, child) {
+                return ElevatedButton(
+                  onPressed: authProvider.isLoading
+                      ? null
+                      : () async {
+                          Navigator.pop(context);
+                          await authProvider.logout();
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: authProvider.isLoading
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : Text('Logout'),
+                );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: Text('Logout'),
             ),
           ],
         );
       },
     );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.blue, size: 16),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[800],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }
