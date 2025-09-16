@@ -67,3 +67,18 @@ class RegisterRequest {
     };
   }
 }
+
+class TokenRefresh {
+  final String access;
+  final String refresh;
+
+  TokenRefresh({required this.access, required this.refresh});
+
+  factory TokenRefresh.fromJson(Map<String, dynamic> json) {
+    return TokenRefresh(access: json['access'], refresh: json['refresh']);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'access': access, 'refresh': refresh};
+  }
+}

@@ -150,16 +150,53 @@ flutter build ios --release
 
 Before running the app, you need to configure your Django backend URL:
 
-1. Open `lib/data/services/auth_service.dart`
+1. Open `lib/core/constants/api_constants.dart`
 2. Replace `YOUR_DJANGO_API_BASE_URL` with your actual Django backend URL
    ```dart
-   static const String baseUrl = 'https://your-django-backend.com'; // Replace this
+   static const String baseUrl = 'https://your-django-backend.com';
+   // For local development use: 'http://localhost:8000'
    ```
 
 3. Make sure your Django backend has the following endpoints:
-   - `POST /api/auth/login/` - User login
+   - `POST /api/auth/login/` - User login  
+   - `POST /api/auth/logout/` - User logout
    - `POST /api/auth/register/` - User registration
-   - `POST /api/auth/token/refresh/` - Token refresh
+   - `POST /api/auth/refresh/` - Token refresh
+   - `GET /api/auth/profile/` - User profile
+
+#### Expected API Schemas
+
+**Login Request:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Register Request:**
+```json
+{
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "user@example.com",
+  "username": "johndoe",
+  "phone_number": "0900111222", 
+  "password": "password123"
+}
+```
+
+**Profile Response:**
+```json
+{
+  "id": 3,
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "user@example.com",
+  "username": "johndoe",
+  "phone_number": "0900111222"
+}
+```
 
 ### Backend Model Compatibility
 

@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
               );
             }
 
-            return authProvider.isAuthenticated ? MainScreen() : MainScreen();
+            return authProvider.isAuthenticated ? MainScreen() : LoginPage();
           },
         ),
       ),

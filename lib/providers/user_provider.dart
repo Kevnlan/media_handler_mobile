@@ -37,6 +37,11 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  void clearUser() {
+    _currentUser = null;
+    notifyListeners();
+  }
+
   void addNotification(String notification) {
     _notifications.insert(0, notification);
     notifyListeners();

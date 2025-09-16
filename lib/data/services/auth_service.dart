@@ -3,10 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decode/jwt_decode.dart';
 import '../models/auth_models.dart';
 import '../models/user_model.dart';
+import '../../core/constants/api_constants.dart';
 
 class AuthService {
-  static const String baseUrl =
-      'YOUR_DJANGO_API_BASE_URL'; // Replace with your actual API URL
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userKey = 'user_data';
@@ -53,7 +52,7 @@ class AuthService {
   Future<AuthResponse> login(LoginRequest request) async {
     try {
       final response = await _dio.post(
-        '$baseUrl/api/auth/login/', // Adjust endpoint as needed
+        ApiConstants.loginUrl,
         data: request.toJson(),
       );
 
@@ -68,7 +67,7 @@ class AuthService {
   Future<AuthResponse> register(RegisterRequest request) async {
     try {
       final response = await _dio.post(
-        '$baseUrl/api/auth/register/', // Adjust endpoint as needed
+        ApiConstants.registerUrl,
         data: request.toJson(),
       );
 
@@ -86,7 +85,7 @@ class AuthService {
       if (refreshToken == null) return false;
 
       final response = await _dio.post(
-        '$baseUrl/api/auth/token/refresh/', // Adjust endpoint as needed
+        ApiConstants.refreshUrl,
         data: {'refresh': refreshToken},
       );
 
@@ -122,11 +121,29 @@ class AuthService {
     final userJson = _prefs.getString(_userKey);
     if (userJson != null) {
       try {
-        // For now, return null and get user data from API calls
-        // In a real implementation, you'd parse the stored JSON
-        return null;
+        // Try to parse stored user data
+        final Map<String, dynamic> userMap = {};
+        final jsonString = userJson.substring(
+          1,
+          userJson.length - 1,
+        ); // Remove { }
+        final pairs = jsonString.split(',');
+        for (final pair in pairs) {
+          final parts = pair.split(':');
+          if (parts.length == 2) {
+            final key = parts[0].replaceAll('"', '').trim();
+            final value = parts[1].replaceAll('"', '').trim();
+            userMap[key] = value;
+          }
+        }
+        return User.fromJson(userMap);
       } catch (e) {
-        return null;
+        // If parsing fails, fetch from API
+        try {
+          return await fetchUserProfile();
+        } catch (e) {
+          return null;
+        }
       }
     }
     return null;
@@ -160,10 +177,27 @@ class AuthService {
     return true;
   }
 
+  Future<User> fetchUserProfile() async {
+    try {
+      final response = await _dio.get(ApiConstants.profileUrl);
+      return User.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    }
+  }
+
   Future<void> logout() async {
-    await _prefs.remove(_accessTokenKey);
-    await _prefs.remove(_refreshTokenKey);
-    await _prefs.remove(_userKey);
+    try {
+      // Call logout API to invalidate token on server
+      await _dio.post(ApiConstants.logoutUrl);
+    } catch (e) {
+      // Even if API call fails, we should clear local tokens
+    } finally {
+      // Clear local storage
+      await _prefs.remove(_accessTokenKey);
+      await _prefs.remove(_refreshTokenKey);
+      await _prefs.remove(_userKey);
+    }
   }
 
   String _handleDioException(DioException e) {

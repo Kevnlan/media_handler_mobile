@@ -561,6 +561,8 @@ class HomeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.pop(context);
                 authProvider.logout();
+                // Clear user provider data
+                Provider.of<UserProvider>(context, listen: false).clearUser();
               },
               child: Text('Logout'),
             ),

@@ -14,13 +14,27 @@ class ProfileScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          Consumer<UserProvider>(
-            builder: (context, userProvider, child) {
-              return IconButton(
-                icon: Icon(Icons.edit),
-                onPressed: () {
-                  _showEditProfileDialog(context, userProvider);
-                },
+          Consumer2<UserProvider, AuthProvider>(
+            builder: (context, userProvider, authProvider, child) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.refresh),
+                    onPressed: () async {
+                      await authProvider.refreshUserProfile();
+                      if (authProvider.currentUser != null) {
+                        userProvider.setUser(authProvider.currentUser!);
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.edit),
+                    onPressed: () {
+                      _showEditProfileDialog(context, userProvider);
+                    },
+                  ),
+                ],
               );
             },
           ),
@@ -707,6 +721,11 @@ class ProfileScreen extends StatelessWidget {
                       : () async {
                           Navigator.pop(context);
                           await authProvider.logout();
+                          // Clear user provider data
+                          Provider.of<UserProvider>(
+                            context,
+                            listen: false,
+                          ).clearUser();
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,

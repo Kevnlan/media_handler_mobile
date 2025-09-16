@@ -37,7 +37,13 @@ class AuthProvider extends ChangeNotifier {
     try {
       final isLoggedIn = await _authService.isLoggedIn();
       if (isLoggedIn) {
-        _currentUser = await _authService.getCurrentUser();
+        // Always fetch fresh user profile from API on app start
+        try {
+          _currentUser = await _authService.fetchUserProfile();
+        } catch (e) {
+          // If API fails, try to get cached user
+          _currentUser = await _authService.getCurrentUser();
+        }
         _isAuthenticated = true;
       } else {
         _isAuthenticated = false;
@@ -123,8 +129,23 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Logout failed: ${e.toString()}';
+      // Still logout locally even if server call fails
+      _isAuthenticated = false;
+      _currentUser = null;
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshUserProfile() async {
+    if (!_isAuthenticated) return;
+
+    try {
+      _currentUser = await _authService.fetchUserProfile();
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to refresh profile: ${e.toString()}';
       notifyListeners();
     }
   }
