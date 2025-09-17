@@ -1,4 +1,7 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path/path.dart' as path;
 import '../models/media_model.dart';
 import '../models/collection_model.dart';
 import '../models/pagination_model.dart';
@@ -15,8 +18,13 @@ import '../../core/constants/api_constants.dart';
 ///
 /// All requests automatically include authentication tokens via Dio interceptors.
 class MediaService {
-  /// Dio HTTP client for making API requests
   final Dio _dio;
+  
+  // Maximum file size (10MB)
+  static const int maxFileSize = 10 * 1024 * 1024;
+  
+  // Target size for compression (8MB)
+  static const int targetFileSize = 8 * 1024 * 1024;
 
   MediaService(this._dio);
 
@@ -59,27 +67,175 @@ class MediaService {
     }
   }
 
+  /// Create media with file size validation and compression
   Future<Media> createMedia({
     required String name,
     required MediaType type,
     required String filePath,
     String? description,
     String? collectionId,
+    Function(int, int)? onSendProgress,
   }) async {
     try {
+      File file = File(filePath);
+      
+      // Step 1: Check if file exists
+      if (!await file.exists()) {
+        throw MediaUploadException('File not found: $filePath');
+      }
+
+      // Step 2: Get and validate file size
+      final originalSize = await file.length();
+      print('Original file size: ${_getFileSizeString(originalSize)}');
+
+      // Step 3: Compress if it's an image and too large
+      if (type == MediaType.image && originalSize > targetFileSize) {
+        file = await _compressImage(file);
+        final compressedSize = await file.length();
+        print('Compressed to: ${_getFileSizeString(compressedSize)}');
+      }
+
+      // Step 4: Final size validation
+      final finalSize = await file.length();
+      if (finalSize > maxFileSize) {
+        throw MediaUploadException(
+          'File size (${_getFileSizeString(finalSize)}) exceeds maximum allowed size of ${_getFileSizeString(maxFileSize)}'
+        );
+      }
+
+      // Step 5: Create form data
+      final fileName = path.basename(file.path);
       final formData = FormData.fromMap({
         'name': name,
         'type': type.value,
-        'description': description,
-        'collection': collectionId,
-        'file': await MultipartFile.fromFile(filePath),
+        if (description != null) 'description': description,
+        if (collectionId != null) 'collection': collectionId,
+        'file': await MultipartFile.fromFile(
+          file.path,
+          filename: fileName,
+        ),
       });
 
-      final response = await _dio.post(ApiConstants.mediaUrl, data: formData);
+      // Step 6: Upload with progress tracking
+      final response = await _dio.post(
+        ApiConstants.mediaUrl,
+        data: formData,
+        onSendProgress: (sent, total) {
+          if (onSendProgress != null) {
+            onSendProgress(sent, total);
+          }
+          final progress = (sent / total * 100).toStringAsFixed(0);
+          print('Upload progress: $progress% (${_getFileSizeString(sent)}/${_getFileSizeString(total)})');
+        },
+      );
+
+      // Step 7: Clean up compressed file if created
+      if (file.path != filePath && await file.exists()) {
+        await file.delete();
+      }
 
       return Media.fromJson(response.data);
     } on DioException catch (e) {
       throw _handleDioException(e);
+    } catch (e) {
+      if (e is MediaUploadException) rethrow;
+      throw MediaUploadException('Upload failed: $e');
+    }
+  }
+
+  /// Compress image file
+  Future<File> _compressImage(File file) async {
+    try {
+      final fileSize = await file.length();
+      
+      // Calculate quality based on target size
+      int quality = ((targetFileSize / fileSize) * 100).round();
+      quality = quality.clamp(50, 95);
+      
+      final String targetPath = path.join(
+        Directory.systemTemp.path,
+        'compressed_${DateTime.now().millisecondsSinceEpoch}_${path.basename(file.path)}',
+      );
+
+      XFile? result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: quality,
+        minWidth: 1920,
+        minHeight: 1080,
+      );
+
+      if (result != null) {
+        final compressedFile = File(result.path);
+        final compressedSize = await compressedFile.length();
+        
+        // If still too large, compress more aggressively
+        if (compressedSize > maxFileSize) {
+          return await _compressAggressively(file);
+        }
+        
+        return compressedFile;
+      }
+      
+      return file;
+    } catch (e) {
+      print('Compression failed: $e');
+      return file;
+    }
+  }
+
+  /// More aggressive compression
+  Future<File> _compressAggressively(File file) async {
+    try {
+      final String targetPath = path.join(
+        Directory.systemTemp.path,
+        'compressed_aggressive_${DateTime.now().millisecondsSinceEpoch}_${path.basename(file.path)}',
+      );
+
+      XFile? result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        targetPath,
+        quality: 60,
+        minWidth: 1280,
+        minHeight: 720,
+      );
+
+      return result != null ? File(result.path) : file;
+    } catch (e) {
+      return file;
+    }
+  }
+
+  /// Get human-readable file size
+  String _getFileSizeString(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  }
+
+  /// Validate file before upload
+  Future<void> validateFile(String filePath, MediaType type) async {
+    final file = File(filePath);
+    
+    if (!await file.exists()) {
+      throw MediaUploadException('File not found');
+    }
+    
+    final fileSize = await file.length();
+    
+    // For non-image files, strictly enforce size limit
+    if (type != MediaType.image && fileSize > maxFileSize) {
+      throw MediaUploadException(
+        'File size (${_getFileSizeString(fileSize)}) exceeds maximum allowed size of ${_getFileSizeString(maxFileSize)}'
+      );
+    }
+    
+    // For images, we'll compress them if needed during upload
+    if (type == MediaType.image && fileSize > maxFileSize * 2) {
+      // Reject if image is more than twice the max size (compression won't help much)
+      throw MediaUploadException(
+        'Image file is too large (${_getFileSizeString(fileSize)}). Please select a smaller image.'
+      );
     }
   }
 
@@ -231,14 +387,18 @@ class MediaService {
       case DioExceptionType.connectionTimeout:
         return 'Connection timeout. Please check your internet connection.';
       case DioExceptionType.sendTimeout:
-        return 'Request timeout. Please try again.';
+        return 'Upload timeout. The file might be too large or your connection is slow.';
       case DioExceptionType.receiveTimeout:
         return 'Server response timeout. Please try again.';
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
+        if (statusCode == 413) {
+          return 'File too large. Maximum size is ${_getFileSizeString(maxFileSize)}';
+        }
         final message =
             e.response?.data['message'] ??
             e.response?.data['error'] ??
+            e.response?.data['detail'] ??
             'Server error occurred.';
         return '$message (Error $statusCode)';
       case DioExceptionType.cancel:
@@ -249,4 +409,13 @@ class MediaService {
         return 'An unexpected error occurred. Please try again.';
     }
   }
+}
+
+/// Custom exception for media upload errors
+class MediaUploadException implements Exception {
+  final String message;
+  MediaUploadException(this.message);
+  
+  @override
+  String toString() => message;
 }

@@ -31,6 +31,9 @@ class AuthService {
   /// SharedPreferences instance for local storage
   final SharedPreferences _prefs;
 
+  /// Flag to prevent infinite refresh loops
+  bool _isRefreshing = false;
+
   /// Constructor initializes the service with dependencies and sets up interceptors
   AuthService(this._dio, this._prefs) {
     _setupInterceptors();
@@ -39,34 +42,63 @@ class AuthService {
   /// Sets up Dio interceptors for automatic token management
   ///
   /// - Automatically adds Bearer token to all requests
-  /// - Handles 401 errors by attempting token refresh
+  /// - Handles 401 errors by attempting token refresh (only once)
   /// - Retries original request with new token if refresh succeeds
   void _setupInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await getAccessToken();
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+          // Don't add token to refresh endpoint to avoid issues
+          if (!options.path.contains('/refresh')) {
+            final token = await getAccessToken();
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
           }
           handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
-            // Token expired, try to refresh
-            final refreshed = await _refreshToken();
-            if (refreshed) {
-              // Retry the original request
-              final token = await getAccessToken();
-              error.requestOptions.headers['Authorization'] = 'Bearer $token';
-              final response = await _dio.fetch(error.requestOptions);
-              handler.resolve(response);
-              return;
-            } else {
-              // Refresh failed, logout user
-              await logout();
+          // Only attempt refresh for non-refresh endpoints and when not already refreshing
+          if (error.response?.statusCode == 401 && 
+              !error.requestOptions.path.contains('/refresh') &&
+              !error.requestOptions.path.contains('/login') &&
+              !error.requestOptions.path.contains('/register') &&
+              !_isRefreshing) {
+            
+            print('Token expired, attempting refresh...');
+            _isRefreshing = true;
+            
+            try {
+              final refreshed = await _refreshToken();
+              
+              if (refreshed) {
+                // Retry the original request with new token
+                final token = await getAccessToken();
+                error.requestOptions.headers['Authorization'] = 'Bearer $token';
+                
+                try {
+                  final response = await _dio.fetch(error.requestOptions);
+                  handler.resolve(response);
+                  return;
+                } catch (retryError) {
+                  // If retry also fails, clear auth and pass error
+                  await _clearAuthData();
+                  handler.next(error);
+                  return;
+                }
+              } else {
+                // Refresh failed, clear auth data
+                print('Token refresh failed, clearing auth data...');
+                await _clearAuthData();
+              }
+            } catch (e) {
+              print('Error during token refresh: $e');
+              await _clearAuthData();
+            } finally {
+              _isRefreshing = false;
             }
           }
+          
           handler.next(error);
         },
       ),
@@ -89,7 +121,7 @@ class AuthService {
   }
 
   Future<AuthResponse> register(RegisterRequest request) async {
-  print(" check url ${ApiConstants.registerUrl}");
+    print("check url ${ApiConstants.registerUrl}");
     try {
       final response = await _dio.post(
         ApiConstants.registerUrl,
@@ -100,8 +132,8 @@ class AuthService {
       await _saveAuthData(authResponse);
       return authResponse;
     } on DioException catch (e) {
-        print("Status code: ${e.response?.statusCode}");
-    print("Response data: ${e.response?.data}");
+      print("Status code: ${e.response?.statusCode}");
+      print("Response data: ${e.response?.data}");
       throw _handleDioException(e);
     }
   }
@@ -109,17 +141,48 @@ class AuthService {
   Future<bool> _refreshToken() async {
     try {
       final refreshToken = await getRefreshToken();
-      if (refreshToken == null) return false;
+      if (refreshToken == null) {
+        print('No refresh token available');
+        return false;
+      }
 
-      final response = await _dio.post(
-        ApiConstants.refreshUrl,
-        data: {'refresh': refreshToken},
-      );
+      // Create a new Dio instance without interceptors to avoid loops
+      final dio = Dio(_dio.options);
+      dio.options.sendTimeout = const Duration(seconds: 5);
+      dio.options.receiveTimeout = const Duration(seconds: 5);
+      
+      try {
+        final response = await dio.post(
+          ApiConstants.refreshUrl,
+          data: {'refresh': refreshToken},
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            // Must throw an exception, not return a value
+            throw TimeoutException('Refresh token timeout');
+          },
+        );
 
-      final newAccessToken = response.data['access'];
-      await _prefs.setString(_accessTokenKey, newAccessToken);
-      return true;
+        if (response.statusCode == 200 && response.data['access'] != null) {
+          final newAccessToken = response.data['access'];
+          await _prefs.setString(_accessTokenKey, newAccessToken);
+          
+          // Update refresh token if provided
+          if (response.data['refresh'] != null) {
+            await _prefs.setString(_refreshTokenKey, response.data['refresh']);
+          }
+          
+          print('Token refreshed successfully');
+          return true;
+        }
+      } catch (e) {
+        print('Refresh request failed: $e');
+        return false;
+      }
+      
+      return false;
     } catch (e) {
+      print('Refresh token error: $e');
       return false;
     }
   }
@@ -134,6 +197,12 @@ class AuthService {
         .map((e) => '"${e.key}":"${e.value}"')
         .join(',');
     await _prefs.setString(_userKey, '{$userJsonString}');
+  }
+
+  Future<void> _clearAuthData() async {
+    await _prefs.remove(_accessTokenKey);
+    await _prefs.remove(_refreshTokenKey);
+    await _prefs.remove(_userKey);
   }
 
   Future<String?> getAccessToken() async {
@@ -165,12 +234,8 @@ class AuthService {
         }
         return User.fromJson(userMap);
       } catch (e) {
-        // If parsing fails, fetch from API
-        try {
-          return await fetchUserProfile();
-        } catch (e) {
-          return null;
-        }
+        print('Error parsing cached user data: $e');
+        return null;
       }
     }
     return null;
@@ -186,22 +251,55 @@ class AuthService {
       final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       return currentTime < exp;
     } catch (e) {
+      print('Error validating token: $e');
       return false;
     }
   }
 
   Future<bool> isLoggedIn() async {
-    final token = await getAccessToken();
-    if (token == null) return false;
+    try {
+      final token = await getAccessToken();
+      if (token == null) {
+        print('No access token found');
+        return false;
+      }
 
-    final isValid = await isTokenValid();
-    if (!isValid) {
-      // Try to refresh the token
-      final refreshed = await _refreshToken();
-      return refreshed;
+      final isValid = await isTokenValid();
+      if (!isValid) {
+        print('Token is invalid/expired, attempting refresh...');
+        
+        // Attempt refresh with proper error handling
+        try {
+          final refreshed = await _refreshToken().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('Refresh timeout during isLoggedIn check');
+              // Must throw an exception for timeout
+              throw TimeoutException('Refresh timeout');
+            },
+          );
+          
+          if (!refreshed) {
+            // If refresh fails, clear auth data
+            await _clearAuthData();
+            return false;
+          }
+          
+          return refreshed;
+        } catch (e) {
+          print('Refresh failed during isLoggedIn: $e');
+          await _clearAuthData();
+          return false;
+        }
+      }
+
+      return true;
+    } catch (e) {
+      print('Error checking login status: $e');
+      // On any error, clear auth and return false
+      await _clearAuthData();
+      return false;
     }
-
-    return true;
   }
 
   Future<User> fetchUserProfile() async {
@@ -216,14 +314,14 @@ class AuthService {
   Future<void> logout() async {
     try {
       // Call logout API to invalidate token on server
+      // Don't use timeout here to avoid compilation issues
       await _dio.post(ApiConstants.logoutUrl);
     } catch (e) {
+      print('Logout API error: $e');
       // Even if API call fails, we should clear local tokens
     } finally {
       // Clear local storage
-      await _prefs.remove(_accessTokenKey);
-      await _prefs.remove(_refreshTokenKey);
-      await _prefs.remove(_userKey);
+      await _clearAuthData();
     }
   }
 
@@ -240,6 +338,7 @@ class AuthService {
         final message =
             e.response?.data['message'] ??
             e.response?.data['error'] ??
+            e.response?.data['detail'] ??
             'Server error occurred.';
         return '$message (Error $statusCode)';
       case DioExceptionType.cancel:
@@ -250,4 +349,13 @@ class AuthService {
         return 'An unexpected error occurred. Please try again.';
     }
   }
+}
+
+// Custom exception class for timeout
+class TimeoutException implements Exception {
+  final String message;
+  TimeoutException(this.message);
+  
+  @override
+  String toString() => message;
 }

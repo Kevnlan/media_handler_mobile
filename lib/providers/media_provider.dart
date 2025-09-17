@@ -18,8 +18,12 @@ class MediaProvider extends ChangeNotifier {
   List<Collection> _collections = [];
   bool _isLoadingCollections = false;
 
-  // General state
+  // Upload state
   bool _isUploading = false;
+  double _uploadProgress = 0.0;
+  String? _currentUploadFile;
+  
+  // General state
   String? _errorMessage;
   Media? _selectedMedia;
 
@@ -34,6 +38,8 @@ class MediaProvider extends ChangeNotifier {
   List<Collection> get collections => _collections;
   bool get isLoadingCollections => _isLoadingCollections;
   bool get isUploading => _isUploading;
+  double get uploadProgress => _uploadProgress;
+  String? get currentUploadFile => _currentUploadFile;
   String? get errorMessage => _errorMessage;
   Media? get selectedMedia => _selectedMedia;
   bool get isHomePageInitialized => _isHomePageInitialized;
@@ -154,7 +160,7 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Upload media
+  // Upload media with validation and progress tracking
   Future<Media?> uploadMedia({
     required String name,
     required MediaType type,
@@ -162,30 +168,97 @@ class MediaProvider extends ChangeNotifier {
     String? description,
     String? collectionId,
   }) async {
-    _isUploading = true;
-    _errorMessage = null;
-    notifyListeners();
-
     try {
+      // Reset state
+      _isUploading = true;
+      _uploadProgress = 0.0;
+      _currentUploadFile = name;
+      _errorMessage = null;
+      notifyListeners();
+
+      // Validate file before upload
+      await _mediaService.validateFile(filePath, type);
+
+      // Upload with progress tracking
       final media = await _mediaService.createMedia(
         name: name,
         type: type,
         filePath: filePath,
         description: description,
         collectionId: collectionId,
+        onSendProgress: (sent, total) {
+          _uploadProgress = sent / total;
+          notifyListeners();
+        },
       );
 
       // Add to local cache
       _mediaByType[type]?.insert(0, media);
 
+      // Reset upload state
+      _isUploading = false;
+      _uploadProgress = 0.0;
+      _currentUploadFile = null;
+      _errorMessage = null;
+      notifyListeners();
+
       return media;
+    } on MediaUploadException catch (e) {
+      _errorMessage = e.message;
+      _isUploading = false;
+      _uploadProgress = 0.0;
+      _currentUploadFile = null;
+      notifyListeners();
+      return null;
     } catch (e) {
       _errorMessage = e.toString();
-      return null;
-    } finally {
       _isUploading = false;
+      _uploadProgress = 0.0;
+      _currentUploadFile = null;
       notifyListeners();
+      return null;
     }
+  }
+
+  // Batch upload multiple files
+  Future<UploadBatchResult> uploadBatch(List<FileUploadRequest> files) async {
+    int successCount = 0;
+    int errorCount = 0;
+    List<Media> uploadedMedia = [];
+    List<String> errors = [];
+
+    for (int i = 0; i < files.length; i++) {
+      final file = files[i];
+      
+      // Update progress for batch
+      _currentUploadFile = '${file.name} (${i + 1}/${files.length})';
+      notifyListeners();
+
+      final result = await uploadMedia(
+        name: file.name,
+        type: file.type,
+        filePath: file.filePath,
+        description: file.description,
+        collectionId: file.collectionId,
+      );
+
+      if (result != null) {
+        successCount++;
+        uploadedMedia.add(result);
+      } else {
+        errorCount++;
+        if (_errorMessage != null) {
+          errors.add('${file.name}: $_errorMessage');
+        }
+      }
+    }
+
+    return UploadBatchResult(
+      successCount: successCount,
+      errorCount: errorCount,
+      uploadedMedia: uploadedMedia,
+      errors: errors,
+    );
   }
 
   // Update media
@@ -396,4 +469,40 @@ class MediaProvider extends ChangeNotifier {
   void dispose() {
     super.dispose();
   }
+}
+
+/// Request model for file upload
+class FileUploadRequest {
+  final String name;
+  final MediaType type;
+  final String filePath;
+  final String? description;
+  final String? collectionId;
+
+  FileUploadRequest({
+    required this.name,
+    required this.type,
+    required this.filePath,
+    this.description,
+    this.collectionId,
+  });
+}
+
+/// Result model for batch uploads
+class UploadBatchResult {
+  final int successCount;
+  final int errorCount;
+  final List<Media> uploadedMedia;
+  final List<String> errors;
+
+  UploadBatchResult({
+    required this.successCount,
+    required this.errorCount,
+    required this.uploadedMedia,
+    required this.errors,
+  });
+
+  bool get hasErrors => errorCount > 0;
+  bool get isSuccess => errorCount == 0;
+  String get summary => '$successCount succeeded, $errorCount failed';
 }
