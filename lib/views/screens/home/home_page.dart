@@ -5,9 +5,31 @@ import 'package:media_handler/providers/media_provider.dart';
 import 'package:media_handler/data/models/media_model.dart';
 import 'package:media_handler/views/screens/media/media_list_page.dart';
 import 'package:media_handler/views/screens/media/media_detail_page.dart';
+import 'package:media_handler/views/screens/home/file_picker_page.dart';
 import 'package:provider/provider.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize media loading once when the widget is created
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final mediaProvider = Provider.of<MediaProvider>(context, listen: false);
+
+      // Only load media if user is authenticated and media hasn't been initialized
+      if (authProvider.isAuthenticated &&
+          !mediaProvider.isHomePageInitialized) {
+        mediaProvider.loadHomePageMedia();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,7 +43,8 @@ class HomeScreen extends StatelessWidget {
         padding: EdgeInsets.all(16.0),
         child: Consumer2<UserProvider, AuthProvider>(
           builder: (context, userProvider, authProvider, child) {
-            final user = userProvider.currentUser;
+            // Use AuthProvider's currentUser as primary source, fallback to UserProvider
+            final user = authProvider.currentUser ?? userProvider.currentUser;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,32 +78,6 @@ class HomeScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 24),
 
-                // Quick Stats
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'Notifications',
-                        value: '${userProvider.notifications.length}',
-                        icon: Icons.notifications,
-                        color: Colors.orange,
-                        onTap: () => _showNotifications(context, userProvider),
-                      ),
-                    ),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatCard(
-                        title: 'Profile',
-                        value: user != null ? 'Complete' : 'Incomplete',
-                        icon: Icons.person,
-                        color: Colors.green,
-                        onTap: () {},
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 24),
-
                 // Media Display
                 Text(
                   'Your Media',
@@ -95,21 +92,6 @@ class HomeScreen extends StatelessWidget {
                 Expanded(
                   child: Consumer<MediaProvider>(
                     builder: (context, mediaProvider, child) {
-                      // Initialize media loading
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mediaProvider
-                                .getMediaByType(MediaType.image)
-                                .isEmpty &&
-                            mediaProvider
-                                .getMediaByType(MediaType.video)
-                                .isEmpty &&
-                            mediaProvider
-                                .getMediaByType(MediaType.audio)
-                                .isEmpty) {
-                          mediaProvider.loadHomePageMedia();
-                        }
-                      });
-
                       if (mediaProvider.errorMessage != null) {
                         return Center(
                           child: Column(
@@ -142,6 +124,66 @@ class HomeScreen extends StatelessWidget {
 
                       if (isLoadingAny) {
                         return Center(child: CircularProgressIndicator());
+                      }
+
+                      // Check if all media types are empty
+                      final bool hasNoMedia =
+                          mediaProvider
+                              .getMediaByType(MediaType.image)
+                              .isEmpty &&
+                          mediaProvider
+                              .getMediaByType(MediaType.video)
+                              .isEmpty &&
+                          mediaProvider.getMediaByType(MediaType.audio).isEmpty;
+
+                      if (hasNoMedia && mediaProvider.isHomePageInitialized) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.photo_library,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'No Media Available',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Start by uploading your first media file!',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => FilePickerPage(),
+                                    ),
+                                  );
+                                },
+                                icon: Icon(Icons.add),
+                                label: Text('Upload Media'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
                       }
 
                       return SingleChildScrollView(

@@ -8,7 +8,7 @@
 class ApiConstants {
   // TODO: Replace with your actual Django backend URL
   // Example: 'https://your-django-backend.com' or 'http://localhost:8000' for development
-  static const String baseUrl = 'YOUR_DJANGO_API_BASE_URL';
+  static const String baseUrl = 'http://192.168.100.9:3000';
 
   // Authentication endpoint paths
   static const String loginEndpoint = '/api/auth/login/';
@@ -19,48 +19,34 @@ class ApiConstants {
   static const String profileEndpoint = '/api/auth/profile/';
 
   // Media endpoint paths
-  static const String mediaEndpoint = '/api/media/';
-  static const String collectionsEndpoint = '/api/media/collection/';
+  static const String mediaEndpoint = '/api/media';
+  static const String collectionsEndpoint = '/api/media/collection';
 
   // Complete URL getters - combine base URL with endpoint paths
   // Authentication URLs
-  /// Complete URL for user login API
   static String get loginUrl => '$baseUrl$loginEndpoint';
-
-  /// Complete URL for user logout API
   static String get logoutUrl => '$baseUrl$logoutEndpoint';
-
-  /// Complete URL for user registration API
   static String get registerUrl => '$baseUrl$registerEndpoint';
-
-  /// Complete URL for token refresh API
   static String get refreshUrl => '$baseUrl$refreshEndpoint';
-
-  /// Complete URL for alternative token refresh API
   static String get tokenRefreshUrl => '$baseUrl$tokenRefreshEndpoint';
-
-  /// Complete URL for user profile API
   static String get profileUrl => '$baseUrl$profileEndpoint';
 
   // Media URLs
-  /// Complete URL for media API
-  static String get mediaUrl => '$baseUrl$mediaEndpoint';
+  static String get mediaUrl => '$baseUrl$mediaEndpoint'; // List/create, no trailing slash
+  static String get collectionsUrl => '$baseUrl$collectionsEndpoint'; // List/create, no trailing slash
 
-  /// Complete URL for collections API
-  static String get collectionsUrl => '$baseUrl$collectionsEndpoint';
+  /// Get URL for a specific media item by ID (needs trailing slash)
+  static String mediaByIdUrl(String id) => '$baseUrl$mediaEndpoint/$id';
 
-  /// Get URL for specific media item
-  static String mediaByIdUrl(String id) => '$baseUrl$mediaEndpoint$id/';
+  /// Get URL for a specific collection by ID (needs trailing slash)
+  static String collectionByIdUrl(String id) => '$baseUrl$collectionsEndpoint/$id';
 
-  /// Get URL for specific collection
-  static String collectionByIdUrl(String id) =>
-      '$baseUrl$collectionsEndpoint$id/';
-
-  /// Get URL for adding media to collection
+  /// Add media to a collection by media ID (needs trailing slash)
   static String addToCollectionUrl(String mediaId) =>
-      '$baseUrl$mediaEndpoint$mediaId/add-to-collection/';
+      '$baseUrl$mediaEndpoint/$mediaId/add-to-collection';
 
-  /// Get URL for removing media from collection
+  /// Remove media from a collection by media ID (needs trailing slash)
   static String removeFromCollectionUrl(String mediaId) =>
-      '$baseUrl$mediaEndpoint$mediaId/remove-from-collection/';
+      '$baseUrl$mediaEndpoint/$mediaId/remove-from-collection';
 }
+

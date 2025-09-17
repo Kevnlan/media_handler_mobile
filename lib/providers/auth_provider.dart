@@ -128,8 +128,8 @@ class AuthProvider extends ChangeNotifier {
 
   /// Registers a new user account
   ///
-  /// Creates new user account with provided information and automatically
-  /// logs them in upon successful registration.
+  /// Creates new user account with provided information.
+  /// Does NOT automatically log in - user should navigate to login page.
   ///
   /// Parameters:
   /// - [firstName]: User's first name (required)
@@ -139,8 +139,9 @@ class AuthProvider extends ChangeNotifier {
   /// - [username]: Optional username
   /// - [phoneNumber]: Optional phone number
   ///
+  /// Returns: True if registration was successful
   /// Throws: Updates [errorMessage] with error details on failure
-  Future<void> register({
+  Future<bool> register({
     required String firstName,
     required String lastName,
     required String email,
@@ -162,16 +163,14 @@ class AuthProvider extends ChangeNotifier {
         phoneNumber: phoneNumber,
       );
 
-      final authResponse = await _authService.register(registerRequest);
+      await _authService.register(registerRequest);
 
-      // After successful registration, automatically log in
-      _isAuthenticated = true;
-      _currentUser = authResponse.user;
+      // Clear error and return success, but don't log in automatically
       _errorMessage = null;
+      return true;
     } catch (e) {
       _errorMessage = e.toString();
-      _isAuthenticated = false;
-      _currentUser = null;
+      return false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -188,15 +187,12 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _authService.logout();
-      _isAuthenticated = false;
-      _currentUser = null;
-      _errorMessage = null;
     } catch (e) {
       _errorMessage = 'Logout failed: ${e.toString()}';
-      // Still logout locally even if server call fails
+    } finally {
+      // Always clear local state regardless of API call result
       _isAuthenticated = false;
       _currentUser = null;
-    } finally {
       _isLoading = false;
       notifyListeners();
     }

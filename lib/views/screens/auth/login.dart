@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:media_handler/providers/auth_provider.dart';
 import 'package:media_handler/providers/user_provider.dart';
+import 'package:media_handler/providers/media_provider.dart';
 import 'package:provider/provider.dart';
 import 'register.dart';
 
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
   _LoginPageState createState() => _LoginPageState();
 }
@@ -157,13 +160,19 @@ class _LoginPageState extends State<LoginPage> {
                                   _passwordController.text,
                                 );
 
-                                // Set user data if login successful
+                                // Set user data if login successful and reset media state for fresh loading
                                 if (authProvider.isAuthenticated &&
                                     authProvider.currentUser != null) {
                                   Provider.of<UserProvider>(
                                     context,
                                     listen: false,
                                   ).setUser(authProvider.currentUser!);
+
+                                  // Reset media provider to ensure fresh data loading
+                                  Provider.of<MediaProvider>(
+                                    context,
+                                    listen: false,
+                                  ).resetHomePageState();
                                 }
                               }
                             },

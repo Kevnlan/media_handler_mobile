@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../../../data/models/media_model.dart';
+import '../../../providers/media_provider.dart';
 
 class FilePickerPage extends StatefulWidget {
   @override
@@ -178,41 +182,47 @@ class _FilePickerPageState extends State<FilePickerPage> {
             if (_selectedFiles.isNotEmpty)
               Padding(
                 padding: EdgeInsets.only(top: 16),
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _uploadFiles,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
+                child: Consumer<MediaProvider>(
+                  builder: (context, mediaProvider, child) {
+                    final isUploading = mediaProvider.isUploading || _isLoading;
+
+                    return ElevatedButton(
+                      onPressed: isUploading ? null : _uploadFiles,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: isUploading
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
                                 ),
+                                SizedBox(width: 12),
+                                Text('Uploading...'),
+                              ],
+                            )
+                          : Text(
+                              'Upload ${_selectedFiles.length} File${_selectedFiles.length > 1 ? 's' : ''}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(width: 12),
-                            Text('Uploading...'),
-                          ],
-                        )
-                      : Text(
-                          'Upload ${_selectedFiles.length} File${_selectedFiles.length > 1 ? 's' : ''}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    );
+                  },
                 ),
               ),
           ],
@@ -262,32 +272,81 @@ class _FilePickerPageState extends State<FilePickerPage> {
   }
 
   Future<void> _uploadFiles() async {
+    final mediaProvider = Provider.of<MediaProvider>(context, listen: false);
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Simulate upload delay
-      await Future.delayed(Duration(seconds: 2));
+      int successCount = 0;
+      int errorCount = 0;
 
-      // Here you would implement actual file upload logic
-      // For now, just show a success message
+      for (final file in _selectedFiles) {
+        if (file.path == null) {
+          errorCount++;
+          continue;
+        }
+
+        // Determine media type based on file extension
+        final mediaType = _getMediaType(file.extension);
+        if (mediaType == null) {
+          errorCount++;
+          continue;
+        }
+
+        final result = await mediaProvider.uploadMedia(
+          name: file.name,
+          type: mediaType,
+          filePath: file.path!,
+          description: 'Uploaded via mobile app',
+        );
+
+        if (result != null) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      }
+
+      // Show result message
+      final message = successCount > 0
+          ? errorCount > 0
+                ? '$successCount file(s) uploaded successfully, $errorCount failed'
+                : '$successCount file(s) uploaded successfully!'
+          : 'All uploads failed. Please try again.';
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            '${_selectedFiles.length} file(s) uploaded successfully!',
-          ),
-          backgroundColor: Colors.green,
+          content: Text(message),
+          backgroundColor: successCount > 0 ? Colors.green : Colors.red,
+          duration: Duration(seconds: 3),
         ),
       );
 
-      setState(() {
-        _selectedFiles.clear();
-      });
+      if (successCount > 0) {
+        setState(() {
+          _selectedFiles.clear();
+        });
+
+        // Navigate back on success
+        Navigator.of(context).pop();
+      }
+
+      // Show any provider errors
+      if (mediaProvider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${mediaProvider.errorMessage}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        mediaProvider.clearError();
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error uploading files: $e'),
+          content: Text('Unexpected error: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -295,6 +354,39 @@ class _FilePickerPageState extends State<FilePickerPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  MediaType? _getMediaType(String? extension) {
+    if (extension == null) return null;
+
+    switch (extension.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp':
+      case 'bmp':
+        return MediaType.image;
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+      case 'wmv':
+      case 'flv':
+      case 'webm':
+      case 'mkv':
+        return MediaType.video;
+      case 'mp3':
+      case 'wav':
+      case 'flac':
+      case 'aac':
+      case 'ogg':
+      case 'm4a':
+        return MediaType.audio;
+      default:
+        // For documents and other files, default to image
+        // You might want to add a 'document' type to your MediaType enum
+        return MediaType.image;
     }
   }
 
@@ -309,6 +401,10 @@ class _FilePickerPageState extends State<FilePickerPage> {
       case 'avi':
       case 'mov':
         return Icon(Icons.video_file, color: Colors.blue);
+      case 'mp3':
+      case 'wav':
+      case 'flac':
+        return Icon(Icons.audio_file, color: Colors.orange);
       case 'pdf':
         return Icon(Icons.picture_as_pdf, color: Colors.red);
       case 'doc':

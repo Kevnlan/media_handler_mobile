@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:media_handler/providers/auth_provider.dart';
 import 'package:media_handler/providers/user_provider.dart';
+import 'package:media_handler/providers/media_provider.dart';
 import 'package:provider/provider.dart';
 
 // Profile Screen
@@ -44,7 +45,8 @@ class ProfileScreen extends StatelessWidget {
         padding: EdgeInsets.all(16.0),
         child: Consumer2<UserProvider, AuthProvider>(
           builder: (context, userProvider, authProvider, child) {
-            final user = userProvider.currentUser;
+            // Use AuthProvider's currentUser as primary source, fallback to UserProvider
+            final user = authProvider.currentUser ?? userProvider.currentUser;
 
             return Column(
               children: [
@@ -146,142 +148,6 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-                SizedBox(height: 24),
-
-                // Additional User Info
-                if (user != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          spreadRadius: 1,
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Account Information',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        _buildInfoRow(
-                          icon: Icons.person,
-                          label: 'Full Name',
-                          value: user.fullName,
-                        ),
-                        _buildInfoRow(
-                          icon: Icons.email,
-                          label: 'Email',
-                          value: user.email,
-                        ),
-                        if (user.username != null)
-                          _buildInfoRow(
-                            icon: Icons.alternate_email,
-                            label: 'Username',
-                            value: user.username!,
-                          ),
-                        if (user.phoneNumber != null)
-                          _buildInfoRow(
-                            icon: Icons.phone,
-                            label: 'Phone',
-                            value: user.phoneNumber!,
-                          ),
-                        if (user.dateJoined != null)
-                          _buildInfoRow(
-                            icon: Icons.calendar_today,
-                            label: 'Member Since',
-                            value: _formatDate(user.dateJoined!),
-                          ),
-                        _buildInfoRow(
-                          icon: Icons.admin_panel_settings,
-                          label: 'Account Type',
-                          value: user.isStaff ? 'Staff' : 'Regular User',
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                ],
-
-                // Profile Stats
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildProfileStat(
-                        title: 'Notifications',
-                        value: '${userProvider.notifications.length}',
-                        icon: Icons.notifications,
-                        color: Colors.orange,
-                      ),
-                    ),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: _buildProfileStat(
-                        title: 'Login Status',
-                        value: authProvider.isAuthenticated
-                            ? 'Online'
-                            : 'Offline',
-                        icon: Icons.circle,
-                        color: authProvider.isAuthenticated
-                            ? Colors.green
-                            : Colors.red,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 24),
-
-                // Profile Options
-                _buildProfileOption(
-                  icon: Icons.person_outline,
-                  title: 'Edit Profile',
-                  subtitle: 'Update your personal information',
-                  onTap: () => _showEditProfileDialog(context, userProvider),
-                ),
-                _buildProfileOption(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notifications',
-                  subtitle:
-                      '${userProvider.notifications.length} unread messages',
-                  onTap: () => _showNotificationsPage(context, userProvider),
-                ),
-                _buildProfileOption(
-                  icon: Icons.security,
-                  title: 'Privacy & Security',
-                  subtitle: 'Manage your account security',
-                  onTap: () => _showSecurityOptions(context),
-                ),
-                _buildProfileOption(
-                  icon: Icons.settings,
-                  title: 'App Settings',
-                  subtitle: 'Configure app preferences',
-                  onTap: () => _showAppSettings(context),
-                ),
-                _buildProfileOption(
-                  icon: Icons.help_outline,
-                  title: 'Help & Support',
-                  subtitle: 'Get help and contact support',
-                  onTap: () => _showHelpSupport(context),
-                ),
-                _buildProfileOption(
-                  icon: Icons.info_outline,
-                  title: 'About',
-                  subtitle: 'App version and information',
-                  onTap: () => _showAboutDialog(context),
                 ),
                 SizedBox(height: 24),
 
@@ -726,6 +592,11 @@ class ProfileScreen extends StatelessWidget {
                             context,
                             listen: false,
                           ).clearUser();
+                          // Reset media provider state
+                          Provider.of<MediaProvider>(
+                            context,
+                            listen: false,
+                          ).resetHomePageState();
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,

@@ -23,6 +23,10 @@ class MediaProvider extends ChangeNotifier {
   String? _errorMessage;
   Media? _selectedMedia;
 
+  // Prevent recursive API calls
+  bool _isHomePageInitialized = false;
+  bool _isInitializing = false;
+
   // Getters
   List<Media> getMediaByType(MediaType type) => _mediaByType[type] ?? [];
   bool isLoadingByType(MediaType type) => _isLoadingByType[type] ?? false;
@@ -32,6 +36,8 @@ class MediaProvider extends ChangeNotifier {
   bool get isUploading => _isUploading;
   String? get errorMessage => _errorMessage;
   Media? get selectedMedia => _selectedMedia;
+  bool get isHomePageInitialized => _isHomePageInitialized;
+  bool get isInitializing => _isInitializing;
 
   MediaProvider() {
     _initializeMediaService();
@@ -52,6 +58,12 @@ class MediaProvider extends ChangeNotifier {
 
   // Load media for homepage (first 5 items of each type)
   Future<void> loadHomePageMedia() async {
+    // Prevent duplicate calls
+    if (_isHomePageInitialized || _isInitializing) {
+      return;
+    }
+
+    _isInitializing = true;
     _errorMessage = null;
     notifyListeners();
 
@@ -71,13 +83,17 @@ class MediaProvider extends ChangeNotifier {
         _currentPageByType[type] = 1;
         _isLoadingByType[type] = false;
       }
+
+      _isHomePageInitialized = true;
     } catch (e) {
       _errorMessage = e.toString();
       for (final type in MediaType.values) {
         _isLoadingByType[type] = false;
       }
+    } finally {
+      _isInitializing = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   // Load media with pagination for specific type
@@ -345,6 +361,35 @@ class MediaProvider extends ChangeNotifier {
   void clearSelectedMedia() {
     _selectedMedia = null;
     notifyListeners();
+  }
+
+  /// Resets the homepage initialization state to allow fresh loading
+  void resetHomePageState() {
+    _isHomePageInitialized = false;
+    _isInitializing = false;
+    // Clear existing data
+    for (final type in MediaType.values) {
+      _mediaByType[type] = [];
+      _isLoadingByType[type] = false;
+      _hasMoreByType[type] = true;
+      _currentPageByType[type] = 1;
+    }
+    notifyListeners();
+  }
+
+  /// Checks if any media type has data
+  bool get hasAnyMedia {
+    return MediaType.values.any(
+      (type) => (_mediaByType[type]?.isNotEmpty ?? false),
+    );
+  }
+
+  /// Gets total media count across all types
+  int get totalMediaCount {
+    return MediaType.values.fold(
+      0,
+      (sum, type) => sum + (_mediaByType[type]?.length ?? 0),
+    );
   }
 
   @override

@@ -89,6 +89,7 @@ class AuthService {
   }
 
   Future<AuthResponse> register(RegisterRequest request) async {
+  print(" check url ${ApiConstants.registerUrl}");
     try {
       final response = await _dio.post(
         ApiConstants.registerUrl,
@@ -99,6 +100,8 @@ class AuthService {
       await _saveAuthData(authResponse);
       return authResponse;
     } on DioException catch (e) {
+        print("Status code: ${e.response?.statusCode}");
+    print("Response data: ${e.response?.data}");
       throw _handleDioException(e);
     }
   }
