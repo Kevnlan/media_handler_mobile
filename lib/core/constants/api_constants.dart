@@ -6,7 +6,6 @@
 /// **IMPORTANT**: Update [baseUrl] with your actual Django backend URL
 /// before running the application.
 class ApiConstants {
-  // TODO: Replace with your actual Django backend URL
   // Example: 'https://your-django-backend.com' or 'http://localhost:8000' for development
   static const String baseUrl = 'http://192.168.100.9:3000';
 

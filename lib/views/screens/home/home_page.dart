@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:media_handler/providers/auth_provider.dart';
 import 'package:media_handler/providers/user_provider.dart';
@@ -9,6 +11,8 @@ import 'package:media_handler/views/screens/home/file_picker_page.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -233,31 +237,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildActionCard(
-                                    icon: Icons.refresh,
-                                    title: 'Refresh',
-                                    color: Colors.blue,
-                                    onTap: () =>
-                                        mediaProvider.loadHomePageMedia(),
-                                  ),
-                                ),
-                                SizedBox(width: 16),
-                                Expanded(
-                                  child: _buildActionCard(
-                                    icon: Icons.logout,
-                                    title: 'Logout',
-                                    color: Colors.red,
-                                    onTap: () => _showLogoutDialog(
-                                      context,
-                                      authProvider,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ],
                         ),
                       );
@@ -455,162 +434,6 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => MediaDetailPage(media: media)),
-    );
-  }
-
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 32),
-            SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-            ),
-            Text(
-              title,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionCard({
-    required IconData icon,
-    required String title,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: color),
-            SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[800],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showNotifications(BuildContext context, UserProvider userProvider) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Notifications',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      userProvider.clearNotifications();
-                      Navigator.pop(context);
-                    },
-                    child: Text('Clear All'),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              ...userProvider.notifications
-                  .map(
-                    (notification) => ListTile(
-                      leading: Icon(Icons.notifications, color: Colors.blue),
-                      title: Text(notification),
-                      dense: true,
-                    ),
-                  )
-                  .toList(),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Logout'),
-          content: Text('Are you sure you want to logout?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                authProvider.logout();
-                // Clear user provider data
-                Provider.of<UserProvider>(context, listen: false).clearUser();
-              },
-              child: Text('Logout'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

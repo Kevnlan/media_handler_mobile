@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../data/models/media_model.dart';
 import '../data/models/collection_model.dart';
@@ -6,7 +7,8 @@ import '../data/services/media_service.dart';
 import '../core/network/dio_factory.dart';
 
 class MediaProvider extends ChangeNotifier {
-  late final MediaService _mediaService;
+  MediaService? _mediaService; // Changed to nullable
+  bool _isServiceInitialized = false;
 
   // Media state
   final Map<MediaType, List<Media>> _mediaByType = {};
@@ -22,7 +24,7 @@ class MediaProvider extends ChangeNotifier {
   bool _isUploading = false;
   double _uploadProgress = 0.0;
   String? _currentUploadFile;
-  
+
   // General state
   String? _errorMessage;
   Media? _selectedMedia;
@@ -44,21 +46,40 @@ class MediaProvider extends ChangeNotifier {
   Media? get selectedMedia => _selectedMedia;
   bool get isHomePageInitialized => _isHomePageInitialized;
   bool get isInitializing => _isInitializing;
+  bool get isServiceInitialized => _isServiceInitialized;
 
   MediaProvider() {
-    _initializeMediaService();
-  }
-
-  Future<void> _initializeMediaService() async {
-    final dio = await DioFactory.createAuthenticatedDio();
-    _mediaService = MediaService(dio);
-
-    // Initialize loading states
+    // Initialize loading states immediately
     for (final type in MediaType.values) {
       _mediaByType[type] = [];
       _isLoadingByType[type] = false;
       _hasMoreByType[type] = true;
       _currentPageByType[type] = 1;
+    }
+    // Initialize service asynchronously
+    _initializeMediaService();
+  }
+
+  Future<void> _initializeMediaService() async {
+    try {
+      final dio = await DioFactory.createAuthenticatedDio();
+      _mediaService = MediaService(dio);
+      _isServiceInitialized = true;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to initialize media service: $e';
+      _isServiceInitialized = false;
+      notifyListeners();
+    }
+  }
+
+  // Ensure service is initialized before using it
+  Future<void> _ensureServiceInitialized() async {
+    if (!_isServiceInitialized || _mediaService == null) {
+      await _initializeMediaService();
+      if (!_isServiceInitialized || _mediaService == null) {
+        throw Exception('Media service initialization failed');
+      }
     }
   }
 
@@ -74,11 +95,14 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Ensure service is initialized
+      await _ensureServiceInitialized();
+
       for (final type in MediaType.values) {
         _isLoadingByType[type] = true;
         notifyListeners();
 
-        final response = await _mediaService.getMedia(
+        final response = await _mediaService!.getMedia(
           page: 1,
           pageSize: 5,
           filters: MediaFilters(type: type, isDeleted: false),
@@ -121,10 +145,12 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await _ensureServiceInitialized();
+
       final currentFilters =
           filters ?? MediaFilters(type: type, isDeleted: false);
 
-      final response = await _mediaService.getMedia(
+      final response = await _mediaService!.getMedia(
         page: _currentPageByType[type]!,
         pageSize: 20,
         filters: currentFilters,
@@ -152,7 +178,8 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _selectedMedia = await _mediaService.getMediaById(id);
+      await _ensureServiceInitialized();
+      _selectedMedia = await _mediaService!.getMediaById(id);
     } catch (e) {
       _errorMessage = e.toString();
       _selectedMedia = null;
@@ -169,6 +196,8 @@ class MediaProvider extends ChangeNotifier {
     String? collectionId,
   }) async {
     try {
+      await _ensureServiceInitialized();
+
       // Reset state
       _isUploading = true;
       _uploadProgress = 0.0;
@@ -177,10 +206,10 @@ class MediaProvider extends ChangeNotifier {
       notifyListeners();
 
       // Validate file before upload
-      await _mediaService.validateFile(filePath, type);
+      await _mediaService!.validateFile(filePath, type);
 
       // Upload with progress tracking
-      final media = await _mediaService.createMedia(
+      final media = await _mediaService!.createMedia(
         name: name,
         type: type,
         filePath: filePath,
@@ -229,8 +258,8 @@ class MediaProvider extends ChangeNotifier {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      
-      // Update progress for batch
+
+      // Update progress per file
       _currentUploadFile = '${file.name} (${i + 1}/${files.length})';
       notifyListeners();
 
@@ -272,12 +301,14 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await _ensureServiceInitialized();
+
       final data = <String, dynamic>{};
       if (name != null) data['name'] = name;
       if (description != null) data['description'] = description;
       if (collectionId != null) data['collection_id'] = collectionId;
 
-      final updatedMedia = await _mediaService.updateMedia(id, data);
+      final updatedMedia = await _mediaService!.updateMedia(id, data);
 
       // Update in local cache
       _updateMediaInCache(updatedMedia);
@@ -301,7 +332,8 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _mediaService.deleteMedia(id);
+      await _ensureServiceInitialized();
+      await _mediaService!.deleteMedia(id);
 
       // Remove from local cache
       _removeMediaFromCache(id);
@@ -326,7 +358,8 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _mediaService.getCollections();
+      await _ensureServiceInitialized();
+      final response = await _mediaService!.getCollections();
       _collections = response.results;
     } catch (e) {
       _errorMessage = e.toString();
@@ -345,7 +378,8 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final collection = await _mediaService.createCollection(
+      await _ensureServiceInitialized();
+      final collection = await _mediaService!.createCollection(
         name: name,
         description: description,
       );
@@ -370,11 +404,13 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await _ensureServiceInitialized();
+
       final data = <String, dynamic>{};
       if (name != null) data['name'] = name;
       if (description != null) data['description'] = description;
 
-      final updatedCollection = await _mediaService.updateCollection(id, data);
+      final updatedCollection = await _mediaService!.updateCollection(id, data);
 
       final index = _collections.indexWhere((c) => c.id == id);
       if (index != -1) {
@@ -396,7 +432,8 @@ class MediaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _mediaService.deleteCollection(id);
+      await _ensureServiceInitialized();
+      await _mediaService!.deleteCollection(id);
       _collections.removeWhere((c) => c.id == id);
       return true;
     } catch (e) {
@@ -465,10 +502,104 @@ class MediaProvider extends ChangeNotifier {
     );
   }
 
+  // File size constants
+  static const int maxFileSize = 10 * 1024 * 1024; // 10MB
+  static const int warningFileSize = 10275021; // 9.8MB in bytes
+
+  /// Validate file size before upload
+  Future<FileSizeValidationResult> validateFileSize({
+    required String filePath,
+    required MediaType mediaType,
+  }) async {
+    try {
+      final file = File(filePath);
+
+      if (!await file.exists()) {
+        return FileSizeValidationResult(
+          isValid: false,
+          errorMessage: 'File not found',
+        );
+      }
+
+      final fileSize = await file.length();
+      final fileSizeString = getFileSizeString(fileSize);
+
+      // Check if file exceeds maximum size
+      if (fileSize > maxFileSize) {
+        return FileSizeValidationResult(
+          isValid: false,
+          errorMessage:
+              'File size ($fileSizeString) exceeds maximum allowed size of ${getFileSizeString(maxFileSize)}',
+        );
+      }
+
+      // Check if file exceeds warning threshold
+      if (fileSize > warningFileSize) {
+        final mediaTypeText = _getMediaTypeText(mediaType);
+        String warningMessage = '$mediaTypeText file size is $fileSizeString. ';
+
+        if (mediaType == MediaType.image) {
+          warningMessage +=
+              'Large images will be automatically compressed during upload to reduce file size.';
+        } else {
+          warningMessage +=
+              'Files larger than ${getFileSizeString(warningFileSize)} may take longer to upload.';
+        }
+
+        return FileSizeValidationResult(
+          isValid: true,
+          warningMessage: warningMessage,
+        );
+      }
+
+      return FileSizeValidationResult(isValid: true);
+    } catch (e) {
+      return FileSizeValidationResult(
+        isValid: false,
+        errorMessage: 'Error checking file size: $e',
+      );
+    }
+  }
+
+  /// Get human-readable file size string
+  String getFileSizeString(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  }
+
+  /// Get media type text for user messages
+  String _getMediaTypeText(MediaType mediaType) {
+    switch (mediaType) {
+      case MediaType.image:
+        return 'Image';
+      case MediaType.video:
+        return 'Video';
+      case MediaType.audio:
+        return 'Audio';
+    }
+  }
+
   @override
   void dispose() {
     super.dispose();
   }
+}
+
+/// Result model for file size validation
+class FileSizeValidationResult {
+  final bool isValid;
+  final String? errorMessage;
+  final String? warningMessage;
+
+  FileSizeValidationResult({
+    required this.isValid,
+    this.errorMessage,
+    this.warningMessage,
+  });
+
+  bool get hasWarning => warningMessage != null;
+  bool get hasError => errorMessage != null;
 }
 
 /// Request model for file upload

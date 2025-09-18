@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_constants.dart';
 
@@ -57,7 +58,9 @@ class DioFactory {
         logPrint: (obj) {
           // Only log in debug mode
           assert(() {
-            print(obj);
+            if (kDebugMode) {
+              print(obj);
+            }
             return true;
           }());
         },
@@ -97,7 +100,9 @@ class DioFactory {
       LogInterceptor(
         logPrint: (obj) {
           assert(() {
-            print(obj);
+            if (kDebugMode) {
+              print(obj);
+            }
             return true;
           }());
         },

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../data/services/auth_service.dart';
@@ -63,7 +63,9 @@ class AuthProvider extends ChangeNotifier {
       _authService = AuthService(dio, prefs);
       await _checkInitialAuthState();
     } catch (e) {
-      print('Error initializing auth service: $e');
+      if (kDebugMode) {
+        print('Error initializing auth service: $e');
+      }
       // Even if there's an error, we need to set isInitializing to false
       _isAuthenticated = false;
       _currentUser = null;
@@ -91,7 +93,9 @@ class AuthProvider extends ChangeNotifier {
         try {
           _currentUser = await _authService!.fetchUserProfile();
         } catch (e) {
-          print('Failed to fetch user profile from API: $e');
+          if (kDebugMode) {
+            print('Failed to fetch user profile from API: $e');
+          }
           // If API fails, try to get cached user
           _currentUser = await _authService!.getCurrentUser();
         }
@@ -101,7 +105,9 @@ class AuthProvider extends ChangeNotifier {
         _currentUser = null;
       }
     } catch (e) {
-      print('Error checking initial auth state: $e');
+      if (kDebugMode) {
+        print('Error checking initial auth state: $e');
+      }
       _isAuthenticated = false;
       _currentUser = null;
     } finally {

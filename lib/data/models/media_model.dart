@@ -96,8 +96,9 @@ class Media {
     if (size == null) return 'Unknown';
     if (size! < 1024) return '$size B';
     if (size! < 1024 * 1024) return '${(size! / 1024).toStringAsFixed(1)} KB';
-    if (size! < 1024 * 1024 * 1024)
+    if (size! < 1024 * 1024 * 1024) {
       return '${(size! / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(size! / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+// ignore: depend_on_referenced_packages
 import 'package:path/path.dart' as path;
 import '../models/media_model.dart';
 import '../models/collection_model.dart';
@@ -86,13 +87,11 @@ class MediaService {
 
       // Step 2: Get and validate file size
       final originalSize = await file.length();
-      print('Original file size: ${_getFileSizeString(originalSize)}');
 
       // Step 3: Compress if it's an image and too large
       if (type == MediaType.image && originalSize > targetFileSize) {
         file = await _compressImage(file);
-        final compressedSize = await file.length();
-        print('Compressed to: ${_getFileSizeString(compressedSize)}');
+        await file.length();
       }
 
       // Step 4: Final size validation
@@ -124,8 +123,7 @@ class MediaService {
           if (onSendProgress != null) {
             onSendProgress(sent, total);
           }
-          final progress = (sent / total * 100).toStringAsFixed(0);
-          print('Upload progress: $progress% (${_getFileSizeString(sent)}/${_getFileSizeString(total)})');
+          (sent / total * 100).toStringAsFixed(0);
         },
       );
 
@@ -179,7 +177,6 @@ class MediaService {
       
       return file;
     } catch (e) {
-      print('Compression failed: $e');
       return file;
     }
   }

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.media_handler"
+    namespace = "com.kevnlan.app.media_handler"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

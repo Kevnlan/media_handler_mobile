@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decode/jwt_decode.dart';
 import '../models/auth_models.dart';
@@ -65,7 +66,9 @@ class AuthService {
               !error.requestOptions.path.contains('/register') &&
               !_isRefreshing) {
             
-            print('Token expired, attempting refresh...');
+            if (kDebugMode) {
+              print('Token expired, attempting refresh...');
+            }
             _isRefreshing = true;
             
             try {
@@ -88,11 +91,12 @@ class AuthService {
                 }
               } else {
                 // Refresh failed, clear auth data
-                print('Token refresh failed, clearing auth data...');
+                if (kDebugMode) {
+                  print('Token refresh failed, clearing auth data...');
+                }
                 await _clearAuthData();
               }
             } catch (e) {
-              print('Error during token refresh: $e');
               await _clearAuthData();
             } finally {
               _isRefreshing = false;
@@ -121,7 +125,6 @@ class AuthService {
   }
 
   Future<AuthResponse> register(RegisterRequest request) async {
-    print("check url ${ApiConstants.registerUrl}");
     try {
       final response = await _dio.post(
         ApiConstants.registerUrl,
@@ -132,8 +135,6 @@ class AuthService {
       await _saveAuthData(authResponse);
       return authResponse;
     } on DioException catch (e) {
-      print("Status code: ${e.response?.statusCode}");
-      print("Response data: ${e.response?.data}");
       throw _handleDioException(e);
     }
   }
@@ -142,7 +143,6 @@ class AuthService {
     try {
       final refreshToken = await getRefreshToken();
       if (refreshToken == null) {
-        print('No refresh token available');
         return false;
       }
 
@@ -172,17 +172,14 @@ class AuthService {
             await _prefs.setString(_refreshTokenKey, response.data['refresh']);
           }
           
-          print('Token refreshed successfully');
           return true;
         }
       } catch (e) {
-        print('Refresh request failed: $e');
         return false;
       }
       
       return false;
     } catch (e) {
-      print('Refresh token error: $e');
       return false;
     }
   }
@@ -234,7 +231,6 @@ class AuthService {
         }
         return User.fromJson(userMap);
       } catch (e) {
-        print('Error parsing cached user data: $e');
         return null;
       }
     }
@@ -251,7 +247,6 @@ class AuthService {
       final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       return currentTime < exp;
     } catch (e) {
-      print('Error validating token: $e');
       return false;
     }
   }
@@ -260,20 +255,17 @@ class AuthService {
     try {
       final token = await getAccessToken();
       if (token == null) {
-        print('No access token found');
         return false;
       }
 
       final isValid = await isTokenValid();
       if (!isValid) {
-        print('Token is invalid/expired, attempting refresh...');
         
         // Attempt refresh with proper error handling
         try {
           final refreshed = await _refreshToken().timeout(
             const Duration(seconds: 10),
             onTimeout: () {
-              print('Refresh timeout during isLoggedIn check');
               // Must throw an exception for timeout
               throw TimeoutException('Refresh timeout');
             },
@@ -287,7 +279,6 @@ class AuthService {
           
           return refreshed;
         } catch (e) {
-          print('Refresh failed during isLoggedIn: $e');
           await _clearAuthData();
           return false;
         }
@@ -295,7 +286,6 @@ class AuthService {
 
       return true;
     } catch (e) {
-      print('Error checking login status: $e');
       // On any error, clear auth and return false
       await _clearAuthData();
       return false;
@@ -317,7 +307,6 @@ class AuthService {
       // Don't use timeout here to avoid compilation issues
       await _dio.post(ApiConstants.logoutUrl);
     } catch (e) {
-      print('Logout API error: $e');
       // Even if API call fails, we should clear local tokens
     } finally {
       // Clear local storage

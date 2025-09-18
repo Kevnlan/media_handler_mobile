@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../../providers/media_provider.dart';
 import '../../../data/models/media_model.dart';
-import '../../../data/models/collection_model.dart';
 
 class MediaDetailPage extends StatefulWidget {
   final Media media;
@@ -15,561 +12,208 @@ class MediaDetailPage extends StatefulWidget {
 
 class _MediaDetailPageState extends State<MediaDetailPage> {
   late Media _currentMedia;
-  bool _isEditing = false;
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  Collection? _selectedCollection;
 
   @override
   void initState() {
     super.initState();
     _currentMedia = widget.media;
-    _nameController.text = _currentMedia.name;
-    _descriptionController.text = _currentMedia.description ?? '';
-
-    // Load collections
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MediaProvider>().loadCollections();
-    });
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  void _toggleEdit() {
-    setState(() {
-      _isEditing = !_isEditing;
-      if (!_isEditing) {
-        // Reset values if canceling edit
-        _nameController.text = _currentMedia.name;
-        _descriptionController.text = _currentMedia.description ?? '';
-        _selectedCollection = null;
-      }
-    });
-  }
-
-  Future<void> _saveChanges() async {
-    final mediaProvider = context.read<MediaProvider>();
-
-    final updatedMedia = await mediaProvider.updateMedia(
-      id: _currentMedia.id,
-      name: _nameController.text.trim().isNotEmpty
-          ? _nameController.text.trim()
-          : null,
-      description: _descriptionController.text.trim().isNotEmpty
-          ? _descriptionController.text.trim()
-          : null,
-      collectionId: _selectedCollection?.id,
-    );
-
-    if (updatedMedia != null) {
-      setState(() {
-        _currentMedia = updatedMedia;
-        _isEditing = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Media updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to update media: ${mediaProvider.errorMessage}',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _deleteMedia() async {
-    final confirmed = await _showDeleteConfirmation();
-    if (!confirmed) return;
-
-    final mediaProvider = context.read<MediaProvider>();
-    final success = await mediaProvider.deleteMedia(_currentMedia.id);
-
-    if (success) {
-      if (mounted) {
-        Navigator.pop(context, true); // Return true to indicate deletion
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Media deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to delete media: ${mediaProvider.errorMessage}',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<bool> _showDeleteConfirmation() async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Delete Media'),
-            content: Text(
-              'Are you sure you want to delete "${_currentMedia.name}"? This action cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text('Delete'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-  }
-
-  void _showCollectionSelector() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (context, scrollController) => Consumer<MediaProvider>(
-          builder: (context, mediaProvider, child) {
-            final collections = mediaProvider.collections;
-            final isLoading = mediaProvider.isLoadingCollections;
-
-            return Container(
-              padding: EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Select Collection',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-
-                  if (isLoading)
-                    Center(child: CircularProgressIndicator())
-                  else if (collections.isEmpty)
-                    Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.folder_open,
-                            size: 48,
-                            color: Colors.grey[400],
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'No collections found',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Expanded(
-                      child: ListView.builder(
-                        controller: scrollController,
-                        itemCount:
-                            collections.length +
-                            1, // +1 for "Remove from collection"
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            // Option to remove from collection
-                            return ListTile(
-                              leading: Icon(
-                                Icons.remove_circle_outline,
-                                color: Colors.red,
-                              ),
-                              title: Text('Remove from collection'),
-                              subtitle: Text(
-                                'This media will not belong to any collection',
-                              ),
-                              onTap: () {
-                                setState(() {
-                                  _selectedCollection = null;
-                                });
-                                Navigator.pop(context);
-                              },
-                            );
-                          }
-
-                          final collection = collections[index - 1];
-                          final isSelected =
-                              collection.id == _currentMedia.collectionId;
-
-                          return ListTile(
-                            leading: Icon(
-                              Icons.folder,
-                              color: isSelected
-                                  ? Colors.blue
-                                  : Colors.grey[600],
-                            ),
-                            title: Text(
-                              collection.name,
-                              style: TextStyle(
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: isSelected ? Colors.blue : null,
-                              ),
-                            ),
-                            subtitle: collection.description != null
-                                ? Text(collection.description!)
-                                : null,
-                            trailing: isSelected
-                                ? Icon(Icons.check_circle, color: Colors.blue)
-                                : null,
-                            onTap: () {
-                              setState(() {
-                                _selectedCollection = collection;
-                              });
-                              Navigator.pop(context);
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Media' : _currentMedia.name),
+        title: Text(_currentMedia.name),
         backgroundColor: _getTypeColor(),
         foregroundColor: Colors.white,
-        actions: [
-          if (!_isEditing) ...[
-            IconButton(
-              onPressed: _toggleEdit,
-              icon: Icon(Icons.edit),
-              tooltip: 'Edit',
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                switch (value) {
-                  case 'delete':
-                    _deleteMedia();
-                    break;
-                  case 'collection':
-                    _showCollectionSelector();
-                    break;
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'collection',
-                  child: Row(
-                    children: [
-                      Icon(Icons.folder, size: 20),
-                      SizedBox(width: 8),
-                      Text('Manage Collection'),
-                    ],
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Media Preview
+            Container(
+              width: double.infinity,
+              height: 300,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    spreadRadius: 2,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
                   ),
-                ),
-                PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: Colors.red, size: 20),
-                      SizedBox(width: 8),
-                      Text('Delete', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ] else ...[
-            TextButton(
-              onPressed: _toggleEdit,
-              child: Text('Cancel', style: TextStyle(color: Colors.white)),
-            ),
-            TextButton(
-              onPressed: _saveChanges,
-              child: Text(
-                'Save',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: _buildMediaPreview(),
               ),
             ),
-          ],
-        ],
-      ),
-      body: Consumer<MediaProvider>(
-        builder: (context, mediaProvider, child) {
-          if (mediaProvider.errorMessage != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(mediaProvider.errorMessage!),
-                  backgroundColor: Colors.red,
-                  action: SnackBarAction(
-                    label: 'Dismiss',
-                    onPressed: () => mediaProvider.clearError(),
-                  ),
-                ),
-              );
-            });
-          }
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Media Preview
-                Container(
-                  width: double.infinity,
-                  height: 300,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.3),
-                        spreadRadius: 2,
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
+            SizedBox(height: 24),
+
+            // Media Information
+            Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Information',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
                       ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: _buildMediaPreview(),
-                  ),
-                ),
+                    ),
+                    SizedBox(height: 16),
 
-                SizedBox(height: 24),
+                    // Name
+                    _buildInfoField(
+                      label: 'Name',
+                      child: Text(
+                        _currentMedia.name,
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
 
-                // Media Information
-                Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    SizedBox(height: 16),
+
+                    // Description
+                    _buildInfoField(
+                      label: 'Description',
+                      child: Text(
+                        _currentMedia.description ?? 'No description',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _currentMedia.description != null
+                              ? Colors.black
+                              : Colors.grey[500],
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 16),
+
+                    // Type and Size
+                    Row(
                       children: [
-                        Text(
-                          'Information',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        SizedBox(height: 16),
-
-                        // Name
-                        _buildInfoField(
-                          label: 'Name',
-                          child: _isEditing
-                              ? TextField(
-                                  controller: _nameController,
-                                  decoration: InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    isDense: true,
-                                  ),
-                                )
-                              : Text(
-                                  _currentMedia.name,
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                        ),
-
-                        SizedBox(height: 16),
-
-                        // Description
-                        _buildInfoField(
-                          label: 'Description',
-                          child: _isEditing
-                              ? TextField(
-                                  controller: _descriptionController,
-                                  decoration: InputDecoration(
-                                    border: OutlineInputBorder(),
-                                    hintText: 'Add a description...',
-                                    isDense: true,
-                                  ),
-                                  maxLines: 3,
-                                )
-                              : Text(
-                                  _currentMedia.description ?? 'No description',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: _currentMedia.description != null
-                                        ? Colors.black
-                                        : Colors.grey[500],
-                                  ),
-                                ),
-                        ),
-
-                        SizedBox(height: 16),
-
-                        // Type and Size
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildInfoField(
-                                label: 'Type',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      _getTypeIcon(),
-                                      color: _getTypeColor(),
-                                      size: 20,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      _currentMedia.type.name.toUpperCase(),
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: _buildInfoField(
-                                label: 'Size',
-                                child: Text(
-                                  _currentMedia.formattedSize,
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: 16),
-
-                        // Collection
-                        if (_isEditing)
-                          _buildInfoField(
-                            label: 'Collection',
-                            child: GestureDetector(
-                              onTap: _showCollectionSelector,
-                              child: Container(
-                                padding: EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey[400]!),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _selectedCollection?.name ??
-                                          (_currentMedia.collectionId != null
-                                              ? 'Current collection'
-                                              : 'Select collection'),
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    Icon(Icons.arrow_drop_down),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          )
-                        else if (_currentMedia.collectionId != null)
-                          _buildInfoField(
-                            label: 'Collection',
+                        Expanded(
+                          child: _buildInfoField(
+                            label: 'Type',
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.folder,
-                                  color: Colors.blue,
+                                  _getTypeIcon(),
+                                  color: _getTypeColor(),
                                   size: 20,
                                 ),
                                 SizedBox(width: 8),
                                 Text(
-                                  'Part of collection',
+                                  _currentMedia.type.name.toUpperCase(),
                                   style: TextStyle(fontSize: 16),
                                 ),
                               ],
                             ),
                           ),
-
-                        SizedBox(height: 16),
-
-                        // Dates
-                        _buildInfoField(
-                          label: 'Created',
-                          child: Text(
-                            _formatDateTime(_currentMedia.createdAt),
-                            style: TextStyle(fontSize: 16),
-                          ),
                         ),
-
-                        SizedBox(height: 12),
-
-                        _buildInfoField(
-                          label: 'Updated',
-                          child: Text(
-                            _formatDateTime(_currentMedia.updatedAt),
-                            style: TextStyle(fontSize: 16),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildInfoField(
+                            label: 'Size',
+                            child: Text(
+                              _currentMedia.formattedSize,
+                              style: TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
+
+                    SizedBox(height: 16),
+
+                    // Collection (if part of one)
+                    if (_currentMedia.collectionId != null)
+                      _buildInfoField(
+                        label: 'Collection',
+                        child: Row(
+                          children: [
+                            Icon(Icons.folder, color: Colors.blue, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'Part of collection',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (_currentMedia.collectionId != null)
+                      SizedBox(height: 16),
+
+                    // Dates
+                    _buildInfoField(
+                      label: 'Created',
+                      child: Text(
+                        _formatDateTime(_currentMedia.createdAt),
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+
+                    SizedBox(height: 12),
+
+                    _buildInfoField(
+                      label: 'Updated',
+                      child: Text(
+                        _formatDateTime(_currentMedia.updatedAt),
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+
+                    // File URL (if available)
+                    if (_currentMedia.fileUrl != null) ...[
+                      SizedBox(height: 16),
+                      _buildInfoField(
+                        label: 'File URL',
+                        child: GestureDetector(
+                          onTap: () {
+                            // Optional: Add functionality to copy URL to clipboard
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('URL: ${_currentMedia.fileUrl}'),
+                                duration: Duration(seconds: 3),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              Icon(Icons.link, size: 16, color: Colors.blue),
+                              SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'View URL',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.blue,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
+              ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -577,21 +221,47 @@ class _MediaDetailPageState extends State<MediaDetailPage> {
   Widget _buildMediaPreview() {
     if (_currentMedia.type == MediaType.image &&
         _currentMedia.fileUrl != null) {
-      return Image.network(
-        _currentMedia.fileUrl!,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CircularProgressIndicator(
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                  : null,
+      return GestureDetector(
+        onTap: () => _showFullScreenImage(),
+        child: Stack(
+          children: [
+            Hero(
+              tag: 'media_${_currentMedia.id}',
+              child: Image.network(
+                _currentMedia.fileUrl!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildPlaceholder(),
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  );
+                },
+              ),
             ),
-          );
-        },
+            // Subtle hint that image is clickable
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(Icons.fullscreen, color: Colors.white, size: 20),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -619,7 +289,38 @@ class _MediaDetailPageState extends State<MediaDetailPage> {
                 color: _getTypeColor(),
               ),
             ),
+            if (_currentMedia.type == MediaType.audio)
+              Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Audio file',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ),
+            if (_currentMedia.type == MediaType.video)
+              Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Video file',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Show full-screen image with zoom capabilities
+  void _showFullScreenImage() {
+    if (_currentMedia.fileUrl == null) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImageViewer(
+          imageUrl: _currentMedia.fileUrl!,
+          heroTag: 'media_${_currentMedia.id}',
+          title: _currentMedia.name,
         ),
       ),
     );
@@ -667,5 +368,137 @@ class _MediaDetailPageState extends State<MediaDetailPage> {
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Full-screen image viewer with zoom and pan capabilities
+class _FullScreenImageViewer extends StatefulWidget {
+  final String imageUrl;
+  final String heroTag;
+  final String title;
+
+  const _FullScreenImageViewer({
+    required this.imageUrl,
+    required this.heroTag,
+    required this.title,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  bool _showAppBar = true;
+
+  void _toggleAppBar() {
+    setState(() {
+      _showAppBar = !_showAppBar;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      appBar: _showAppBar
+          ? AppBar(
+              backgroundColor: Colors.black54,
+              elevation: 0,
+              iconTheme: IconThemeData(color: Colors.white),
+              title: Text(
+                widget.title,
+                style: TextStyle(color: Colors.white),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.share, color: Colors.white),
+                  onPressed: () {
+                    // Add share functionality if needed
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Share functionality can be added here'),
+                        backgroundColor: Colors.grey[800],
+                      ),
+                    );
+                  },
+                ),
+              ],
+            )
+          : null,
+      body: GestureDetector(
+        onTap: _toggleAppBar,
+        child: Center(
+          child: Hero(
+            tag: widget.heroTag,
+            child: InteractiveViewer(
+              panEnabled: true,
+              boundaryMargin: EdgeInsets.all(20),
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.network(
+                widget.imageUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: Colors.white,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Loading image...',
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.white, size: 64),
+                      SizedBox(height: 16),
+                      Text(
+                        'Could not load image',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Please check your internet connection',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                      SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Go Back'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white24,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
