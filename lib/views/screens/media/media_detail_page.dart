@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../../../data/models/media_model.dart';
 
@@ -485,11 +487,11 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
                       SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: Text('Go Back'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white24,
                           foregroundColor: Colors.white,
                         ),
+                        child: Text('Go Back'),
                       ),
                     ],
                   ),

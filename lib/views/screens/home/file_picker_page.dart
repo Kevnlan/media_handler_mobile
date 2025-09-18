@@ -14,6 +14,8 @@ import '../../../providers/media_provider.dart';
 import '../../../data/models/media_model.dart';
 
 class FilePickerPage extends StatefulWidget {
+  const FilePickerPage({super.key});
+
   @override
   _FilePickerPageState createState() => _FilePickerPageState();
 }

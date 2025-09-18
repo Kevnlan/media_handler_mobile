@@ -3,6 +3,8 @@ import 'package:media_handler/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
 class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
+
   @override
   _RegisterPageState createState() => _RegisterPageState();
 }

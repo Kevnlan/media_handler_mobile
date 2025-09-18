@@ -4,6 +4,8 @@ import 'package:media_handler/views/screens/home/profile_page.dart';
 import 'package:media_handler/views/screens/home/file_picker_page.dart';
 
 class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
   @override
   _MainScreenState createState() => _MainScreenState();
 }
@@ -34,8 +36,8 @@ class _MainScreenState extends State<MainScreen> {
           );
         },
         backgroundColor: Colors.blue,
-        child: Icon(Icons.add, color: Colors.white),
         tooltip: 'Select Files',
+        child: Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomNavigationBar(
