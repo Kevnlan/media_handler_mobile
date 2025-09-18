@@ -1,4 +1,4 @@
-package com.example.media_handler
+package com.app.kevnlan.media_handler
 
 import io.flutter.embedding.android.FlutterActivity
 
